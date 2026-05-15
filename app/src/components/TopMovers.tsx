@@ -12,6 +12,7 @@ const TopMovers: React.FC = () => {
   const topMovers = useMemo(() => {
     if (!tickers) return [];
     const coins = tickers
+      .filter((t) => t.symbol.endsWith('USDT'))
       .filter((t) => {
         const base = t.symbol.replace('USDT', '');
         return !STABLECOINS.has(base) && base.length <= 6;

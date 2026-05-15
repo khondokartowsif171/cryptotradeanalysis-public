@@ -12,6 +12,7 @@ const Converter: React.FC = () => {
   const coinList = useMemo(() => {
     if (!tickers) return [];
     return tickers
+      .filter((t) => t.symbol.endsWith('USDT'))
       .filter((t) => {
         const base = t.symbol.replace('USDT', '');
         return !STABLECOINS.has(base) && base.length <= 6;

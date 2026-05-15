@@ -12,3 +12,5 @@ coverage.json
 ignition/deployments/
 *.log
 .DS_Store
+
+.vercel

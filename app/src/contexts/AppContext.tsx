@@ -27,9 +27,9 @@ export const useAppContext = () => useContext(AppContext);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [watchlist, setWatchlist] = useState<string[]>(['bitcoin', 'ethereum', 'solana', 'bnb', 'cardano']);
+  const [watchlist, setWatchlist] = useState<string[]>(['btc', 'eth', 'sol', 'bnb', 'xrp']);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCoin, setActiveCoin] = useState('bitcoin');
+  const [activeCoin, setActiveCoin] = useState('btc');
   const [activeTab, setActiveTab] = useState('overview');
   const [sortField, setSortFieldState] = useState('rank');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');

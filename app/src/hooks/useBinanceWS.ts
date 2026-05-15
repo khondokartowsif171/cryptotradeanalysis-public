@@ -20,7 +20,9 @@ export function useBinanceTicker(symbols: string[]) {
   const symbolsKey = symbols.join(',');
 
   useEffect(() => {
-    const streams = symbols.map((s) => `${s.toLowerCase()}usdt@ticker`);
+    const streams = symbols
+      .filter(Boolean)
+      .map((s) => `${s.toLowerCase()}usdt@ticker`);
     const cleanups: (() => void)[] = [];
 
     streams.forEach((stream) => {

@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.vite/
+cache/
+artifacts/
+cache_hardhat/
+typechain-types/
+typechain/
+coverage/
+coverage.json
+ignition/deployments/
+*.log
+.DS_Store

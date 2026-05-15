@@ -1,0 +1,93 @@
+{
+  "name": "Crypto Price Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "minutes", "minutesInterval": 5}]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.binance.com/api/v3/ticker/price?symbols=[\"BTCUSDT\",\"ETHUSDT\",\"SOLUSDT\"]",
+        "options": {}
+      },
+      "id": "fetch-prices",
+      "name": "Fetch Binance Prices",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json[\"price\"]}}",
+              "operation": "Smaller",
+              "value2": 75000
+            }
+          ]
+        },
+        "combine": "ANY"
+      },
+      "id": "check-btc",
+      "name": "Check BTC < $75K",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "🚨 BTC Alert!\nBTC price dropped below $75,000\nCurrent: ${{$json[\"price\"]}}\n\nFrom: Aura CryptoX Alert Bot",
+        "additionalFields": {}
+      },
+      "id": "send-telegram",
+      "name": "Send Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "collection": "alerts",
+        "fields": {
+          "values": {
+            "string": [
+              {"key": "symbol", "value": "={{$json[\"symbol\"]}}"},
+              {"key": "price", "value": "={{$json[\"price\"]}}"},
+              {"key": "threshold", "value": "$75,000"},
+              {"key": "triggered_at", "value": "={{$now.toISOString()}}"}
+            ]
+          }
+        }
+      },
+      "id": "log-alert",
+      "name": "Log Alert to MongoDB",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 2,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [[{ "node": "Fetch Binance Prices", "type": "main", "index": 0 }]]
+    },
+    "Fetch Binance Prices": {
+      "main": [[{ "node": "Check BTC < $75K", "type": "main", "index": 0 }]]
+    },
+    "Check BTC < $75K": {
+      "main": [
+        [{ "node": "Send Telegram Alert", "type": "main", "index": 0 }],
+        [{ "node": "Log Alert to MongoDB", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

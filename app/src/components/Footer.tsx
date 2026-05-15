@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BarChart3, Send, Github, Twitter, MessageCircle, Globe, Loader2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { subscribeEmail } from '@/services/subscribe';
+import { api } from '@/services/api';
 
 const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -14,21 +15,28 @@ const Footer: React.FC = () => {
       return;
     }
     setSubscribing(true);
-    const result = await subscribeEmail(email);
-    setSubscribing(false);
-    if (result.error) {
-      if (result.error === 'Subscription service not configured') {
-        toast({ title: 'Subscribed!', description: 'You will receive our weekly crypto digest.' });
-      } else if (result.error === 'Already subscribed') {
-        toast({ title: 'Already Subscribed', description: 'This email is already on our list.' });
-      } else {
-        toast({ title: 'Error', description: result.error, variant: 'destructive' });
-        return;
-      }
-    } else {
+    try {
+      await api.subscribe(email);
       toast({ title: 'Subscribed!', description: 'You will receive our weekly crypto digest.' });
+      setEmail('');
+    } catch {
+      const result = await subscribeEmail(email);
+      if (result.error) {
+        if (result.error === 'Subscription service not configured') {
+          toast({ title: 'Subscribed!', description: 'You will receive our weekly crypto digest.' });
+        } else if (result.error === 'Already subscribed') {
+          toast({ title: 'Already Subscribed', description: 'This email is already on our list.' });
+        } else {
+          toast({ title: 'Error', description: result.error, variant: 'destructive' });
+          setSubscribing(false);
+          return;
+        }
+      } else {
+        toast({ title: 'Subscribed!', description: 'You will receive our weekly crypto digest.' });
+      }
+      setEmail('');
     }
-    setEmail('');
+    setSubscribing(false);
   };
 
   const footerLinks = {

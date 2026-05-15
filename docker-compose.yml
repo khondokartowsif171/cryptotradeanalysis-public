@@ -1,0 +1,56 @@
+services:
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgresql://cryptox:cryptox@postgres:5432/cryptox
+      - MONGO_URL=mongodb://mongo:27017
+      - MONGO_DB=cryptox
+      - JWT_SECRET=${JWT_SECRET:-change-this-to-a-random-secret}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - cryptox-net
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=cryptox
+      - POSTGRES_PASSWORD=cryptox
+      - POSTGRES_DB=cryptox
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./server/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cryptox"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - cryptox-net
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongodata:/data/db
+    restart: unless-stopped
+    networks:
+      - cryptox-net
+
+volumes:
+  pgdata:
+  mongodata:
+
+networks:
+  cryptox-net:
+    driver: bridge

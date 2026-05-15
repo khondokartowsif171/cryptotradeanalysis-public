@@ -1,0 +1,62 @@
+{
+  "name": "Crypto News Fetcher",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "hours", "minutesInterval": 30}]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://min-api.cryptocompare.com/data/v2/news/?lang=EN&limit=10",
+        "options": {}
+      },
+      "id": "fetch-news",
+      "name": "Fetch CryptoCompare News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "collection": "news",
+        "fields": {
+          "values": {
+            "string": [
+              {"key": "title", "value": "={{$json[\"Data\"][0][\"title\"]}}"},
+              {"key": "source", "value": "={{$json[\"Data\"][0][\"source\"]}}"},
+              {"key": "url", "value": "={{$json[\"Data\"][0][\"url\"]}}"},
+              {"key": "category", "value": "={{$json[\"Data\"][0][\"categories\"]}}"},
+              {"key": "summary", "value": "={{$json[\"Data\"][0][\"body\"]}}"},
+              {"key": "image", "value": "={{$json[\"Data\"][0][\"imageurl\"]}}"},
+              {"key": "published_at", "value": "={{$json[\"Data\"][0][\"published_on\"]}}"}
+            ]
+          }
+        },
+        "options": {
+          "cleanUp": true
+        }
+      },
+      "id": "insert-mongo",
+      "name": "Insert to MongoDB",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 2,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [[{ "node": "Fetch CryptoCompare News", "type": "main", "index": 0 }]]
+    },
+    "Fetch CryptoCompare News": {
+      "main": [[{ "node": "Insert to MongoDB", "type": "main", "index": 0 }]]
+    }
+  }
+}

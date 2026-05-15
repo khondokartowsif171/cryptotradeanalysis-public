@@ -1,0 +1,7 @@
+{
+  "rootDirectory": "app",
+  "framework": "vite",
+  "buildCommand": "vite build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install"
+}

@@ -4,9 +4,10 @@ import { useTickerData } from '@/hooks/useCryptoData';
 import { formatPrice, CRYPTO_COLORS } from '@/types/crypto';
 import {
   Search, X, Star, BarChart3, Newspaper, Activity, TrendingUp,
-  Sun, Moon, Menu, Loader2,
+  Sun, Moon, Menu, Loader2, Wallet, LogOut,
 } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
+import { useContract } from '@/hooks/useContract';
 
 const Header: React.FC = () => {
   const {
@@ -14,6 +15,7 @@ const Header: React.FC = () => {
     showSearch, setShowSearch, setActiveCoin,
   } = useAppContext();
   const { theme, setTheme } = useTheme();
+  const { account, isConnecting, connectWallet } = useContract();
   const searchRef = useRef<HTMLInputElement>(null);
   const { data: tickers, isLoading } = useTickerData();
 
@@ -58,8 +60,9 @@ const Header: React.FC = () => {
               <BarChart3 className="w-5 h-5 text-black" />
             </div>
             <div className="flex items-center gap-1">
+              <span className="text-sm text-muted-foreground font-medium">Aura</span>
               <span className="text-xl font-bold tracking-tight">CryptoX</span>
-              <span className="text-[10px] font-semibold bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">PRO</span>
+              <span className="text-[10px] font-semibold bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">BETA</span>
             </div>
           </div>
 
@@ -142,9 +145,26 @@ const Header: React.FC = () => {
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
 
-            <button className="hidden sm:flex items-center gap-2 bg-gradient-to-r from-[#F0B90B] to-[#F8D12F] text-black px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity">
-              Connect Wallet
-            </button>
+            {account ? (
+              <div className="hidden sm:flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 px-3 py-2 rounded-lg">
+                <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="text-sm font-mono font-medium">
+                  {account.slice(0, 6)}...{account.slice(-4)}
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={connectWallet}
+                disabled={isConnecting}
+                className="hidden sm:flex items-center gap-2 bg-gradient-to-r from-[#F0B90B] to-[#F8D12F] text-black px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {isConnecting ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Connecting</>
+                ) : (
+                  <><Wallet className="w-4 h-4" /> Connect Wallet</>
+                )}
+              </button>
+            )}
           </div>
         </div>
 

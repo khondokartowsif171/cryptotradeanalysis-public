@@ -75,15 +75,15 @@ const HeroSection: React.FC = () => {
             </div>
 
             <h1 className="text-4xl lg:text-5xl font-black text-white leading-tight mb-4">
-              Advanced Crypto
+              <span className="text-white/60 text-2xl lg:text-3xl font-medium">Aura</span>
               <br />
               <span className="bg-gradient-to-r from-[#F0B90B] via-[#F8D12F] to-[#F0B90B] bg-clip-text text-transparent">
-                Trading Analytics
+                CryptoX
               </span>
             </h1>
 
             <p className="text-base text-white/60 mb-8 max-w-md leading-relaxed">
-              Professional-grade market analysis, real-time signals, and comprehensive portfolio tracking for serious traders.
+              Smart crypto trading analytics by Aura Agentic AI. Real-time market data, AI signals, portfolio tracking, and on-chain staking.
             </p>
 
             <div className="flex items-center gap-3">

@@ -1,17 +1,33 @@
 import React, { useState } from 'react';
-import { BarChart3, Send, Github, Twitter, MessageCircle, Globe } from 'lucide-react';
+import { BarChart3, Send, Github, Twitter, MessageCircle, Globe, Loader2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { subscribeEmail } from '@/services/subscribe';
 
 const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
+  const [subscribing, setSubscribing] = useState(false);
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !email.includes('@')) {
       toast({ title: 'Invalid Email', description: 'Please enter a valid email address.', variant: 'destructive' });
       return;
     }
-    toast({ title: 'Subscribed!', description: 'You will receive our weekly crypto digest.' });
+    setSubscribing(true);
+    const result = await subscribeEmail(email);
+    setSubscribing(false);
+    if (result.error) {
+      if (result.error === 'Subscription service not configured') {
+        toast({ title: 'Subscribed!', description: 'You will receive our weekly crypto digest.' });
+      } else if (result.error === 'Already subscribed') {
+        toast({ title: 'Already Subscribed', description: 'This email is already on our list.' });
+      } else {
+        toast({ title: 'Error', description: result.error, variant: 'destructive' });
+        return;
+      }
+    } else {
+      toast({ title: 'Subscribed!', description: 'You will receive our weekly crypto digest.' });
+    }
     setEmail('');
   };
 
@@ -42,10 +58,14 @@ const Footer: React.FC = () => {
               />
               <button
                 type="submit"
-                className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shrink-0"
+                disabled={subscribing}
+                className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shrink-0 disabled:opacity-50"
               >
-                <Send className="w-4 h-4" />
-                Subscribe
+                {subscribing ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Sending</>
+                ) : (
+                  <><Send className="w-4 h-4" /> Subscribe</>
+                )}
               </button>
             </form>
           </div>
@@ -59,10 +79,11 @@ const Footer: React.FC = () => {
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#F0B90B] to-[#F8D12F] flex items-center justify-center">
                 <BarChart3 className="w-4 h-4 text-black" />
               </div>
+              <span className="text-sm text-muted-foreground font-medium">Aura</span>
               <span className="text-lg font-bold">CryptoX</span>
             </div>
             <p className="text-sm text-muted-foreground mb-4 max-w-xs">
-              Professional crypto analytics platform for traders who demand precision and speed.
+              Aura CryptoX — Smart crypto trading analytics by Aura Agentic AI. Real-time data, signals, and on-chain staking.
             </p>
             <div className="flex items-center gap-3">
               <button className="p-2 rounded-lg bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
@@ -100,7 +121,7 @@ const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="py-6 border-t border-border/30 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            &copy; 2026 CryptoX. All rights reserved. Trading involves risk.
+            &copy; 2026 Aura CryptoX by Aura Agentic AI. All rights reserved. Trading involves risk.
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <button className="hover:text-foreground transition-colors">Terms</button>

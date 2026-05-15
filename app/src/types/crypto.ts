@@ -143,7 +143,11 @@ export const CRYPTO_COLORS: Record<string, string> = {
 };
 
 export const STABLECOINS = new Set([
-  'USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'FDUSD', 'PAX', 'GUSD', 'HUSD', 'USDN', 'USDP', 'USTC',
+  'USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'FDUSD', 'PAX', 'GUSD', 'HUSD',
+  'USDN', 'USDP', 'USTC', 'USD1', 'XUSD', 'RLUSD', 'EUR', 'EURC', 'EURT',
+  'GBP', 'AUD', 'CAD', 'CHF', 'JPY', 'SGD', 'HKD', 'CNY', 'KRW',
+  'USDD', 'FRAX', 'LUSD', 'ALUSD', 'MIM', 'UST', 'CUSD', 'USDB',
+  'USD0', 'USDO', 'USDE', 'EURI', 'EURL',
 ]);
 
 export const TOP_COINS = [

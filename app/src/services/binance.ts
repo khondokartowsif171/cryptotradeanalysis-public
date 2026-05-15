@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { BinanceTicker, BinanceKline } from '@/types/crypto';
+import { STABLECOINS } from '@/types/crypto';
 
 const BASE_URL = 'https://api.binance.com';
 const COINGECKO_URL = 'https://api.coingecko.com/api/v3';
@@ -80,7 +81,21 @@ export async function getKlines(
     const res = await fetchWithRetry(
       `${BASE_URL}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
     );
-    return res.json();
+    const raw: unknown[][] = await res.json();
+    return raw.map((k) => ({
+      openTime: k[0] as number,
+      open: k[1] as string,
+      high: k[2] as string,
+      low: k[3] as string,
+      close: k[4] as string,
+      volume: k[5] as string,
+      closeTime: k[6] as number,
+      quoteVolume: k[7] as string,
+      count: k[8] as number,
+      takerBuyVolume: k[9] as string,
+      takerBuyQuoteVolume: k[10] as string,
+      ignore: k[11] as string,
+    }));
   });
 }
 
@@ -182,9 +197,13 @@ export async function fetchAllAssets(): Promise<ReturnType<typeof tickerToAsset>
   const usdtPairs = tickers
     .filter((t) => t.symbol.endsWith('USDT'))
     .filter((t) => !t.symbol.includes('UP') && !t.symbol.includes('DOWN'))
-    .filter((t) => parseFloat(t.volume) > 10000)
+    .filter((t) => {
+      const base = t.symbol.replace('USDT', '');
+      return !STABLECOINS.has(base);
+    })
+    .filter((t) => parseFloat(t.quoteVolume) > 1000000)
     .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-    .slice(0, 100);
+    .slice(0, 50);
 
   return usdtPairs.map((t, i) => tickerToAsset(t, i + 1));
 }

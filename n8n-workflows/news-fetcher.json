@@ -4,25 +4,42 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{"field": "hours", "minutesInterval": 30}]
+          "interval": [
+            {
+              "field": "hours",
+              "minutesInterval": 30
+            }
+          ]
         }
       },
-      "id": "schedule-trigger",
+      "id": "crypto-news-schedule",
       "name": "Every 30 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [0, 0]
     },
     {
       "parameters": {
+        "method": "GET",
         "url": "https://min-api.cryptocompare.com/data/v2/news/?lang=EN&limit=10",
+        "sendHeaders": true,
         "options": {}
       },
-      "id": "fetch-news",
+      "id": "crypto-news-fetch",
       "name": "Fetch CryptoCompare News",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [450, 300]
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nconst newsData = $input.first().json.Data || [];\nfor (const article of newsData) {\n  items.push({\n    json: {\n      title: article.title,\n      source: article.source,\n      url: article.url,\n      category: article.categories,\n      summary: article.body ? article.body.slice(0, 500) : '',\n      image: article.imageurl || '',\n      published_at: new Date(article.published_on * 1000).toISOString(),\n      fetched_at: new Date().toISOString()\n    }\n  });\n}\nreturn items.length > 0 ? items : [{ json: { _empty: true } }];"
+      },
+      "id": "crypto-news-transform",
+      "name": "Transform Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0]
     },
     {
       "parameters": {
@@ -30,33 +47,37 @@
         "fields": {
           "values": {
             "string": [
-              {"key": "title", "value": "={{$json[\"Data\"][0][\"title\"]}}"},
-              {"key": "source", "value": "={{$json[\"Data\"][0][\"source\"]}}"},
-              {"key": "url", "value": "={{$json[\"Data\"][0][\"url\"]}}"},
-              {"key": "category", "value": "={{$json[\"Data\"][0][\"categories\"]}}"},
-              {"key": "summary", "value": "={{$json[\"Data\"][0][\"body\"]}}"},
-              {"key": "image", "value": "={{$json[\"Data\"][0][\"imageurl\"]}}"},
-              {"key": "published_at", "value": "={{$json[\"Data\"][0][\"published_on\"]}}"}
+              {"key": "title", "value": "={{$json.title}}"},
+              {"key": "source", "value": "={{$json.source}}"},
+              {"key": "url", "value": "={{$json.url}}"},
+              {"key": "category", "value": "={{$json.category}}"},
+              {"key": "summary", "value": "={{$json.summary}}"},
+              {"key": "image", "value": "={{$json.image}}"},
+              {"key": "published_at", "value": "={{$json.published_at}}"},
+              {"key": "fetched_at", "value": "={{$json.fetched_at}}"}
             ]
           }
         },
         "options": {
-          "cleanUp": true
+          "cleanUp": false
         }
       },
-      "id": "insert-mongo",
+      "id": "crypto-news-mongo",
       "name": "Insert to MongoDB",
       "type": "n8n-nodes-base.mongoDb",
       "typeVersion": 2,
-      "position": [650, 300]
+      "position": [720, 0]
     }
   ],
   "connections": {
     "Every 30 Minutes": {
-      "main": [[{ "node": "Fetch CryptoCompare News", "type": "main", "index": 0 }]]
+      "main": [[{"node": "Fetch CryptoCompare News", "type": "main", "index": 0}]]
     },
     "Fetch CryptoCompare News": {
-      "main": [[{ "node": "Insert to MongoDB", "type": "main", "index": 0 }]]
+      "main": [[{"node": "Transform Data", "type": "main", "index": 0}]]
+    },
+    "Transform Data": {
+      "main": [[{"node": "Insert to MongoDB", "type": "main", "index": 0}]]
     }
   }
 }

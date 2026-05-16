@@ -4,35 +4,42 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{"field": "hours", "minutesInterval": 1}]
+          "interval": [
+            {
+              "field": "hours",
+              "minutesInterval": 1
+            }
+          ]
         }
       },
-      "id": "schedule-trigger",
+      "id": "signal-schedule",
       "name": "Every 1 Hour",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [0, 0]
     },
     {
       "parameters": {
-        "url": "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=20",
+        "method": "GET",
+        "url": "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=50",
+        "sendHeaders": true,
         "options": {}
       },
-      "id": "fetch-klines",
-      "name": "Fetch BTC 1H KLINES",
+      "id": "signal-klines",
+      "name": "Fetch BTC 1H Klines",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [450, 300]
+      "position": [240, 0]
     },
     {
       "parameters": {
-        "jsCode": "const klines = $input.all();\nconst closes = klines.map(k => parseFloat(k.json[4]));\n\nfunction calcRSI(prices, period = 14) {\n  if (prices.length < period + 1) return 50;\n  let gains = 0, losses = 0;\n  for (let i = prices.length - period; i < prices.length; i++) {\n    const diff = prices[i] - prices[i - 1];\n    if (diff > 0) gains += diff;\n    else losses -= diff;\n  }\n  const avgGain = gains / period;\n  const avgLoss = losses / period;\n  if (avgLoss === 0) return 100;\n  const rs = avgGain / avgLoss;\n  return 100 - 100 / (1 + rs);\n}\n\nconst rsi = calcRSI(closes);\nconst lastPrice = closes[closes.length - 1];\nlet signal = 'HOLD';\nif (rsi < 30) signal = 'BUY';\nif (rsi > 70) signal = 'SELL';\n\nreturn [{\n  pair: 'BTCUSDT',\n  price: lastPrice,\n  rsi: Math.round(rsi * 100) / 100,\n  signal,\n  timestamp: new Date().toISOString(),\n  indicator: 'RSI(14)'\n}];"
+        "jsCode": "const klines = $input.first().json;\nconst closes = [];\nfor (const k of Object.keys(klines)) {\n  if (Array.isArray(klines[k])) {\n    closes.push(parseFloat(klines[k][4]));\n  }\n}\n\nif (closes.length === 0) {\n  return [{ json: { error: 'No kline data' } }];\n}\n\nfunction calcRSI(prices, period = 14) {\n  if (prices.length < period + 1) return 50;\n  let gains = 0, losses = 0;\n  const len = prices.length;\n  for (let i = len - period; i < len; i++) {\n    const diff = prices[i] - prices[i - 1];\n    if (diff > 0) gains += diff;\n    else losses -= diff;\n  }\n  const avgGain = gains / period;\n  const avgLoss = losses / period;\n  if (avgLoss === 0) return 100;\n  const rs = avgGain / avgLoss;\n  return Math.round((100 - 100 / (1 + rs)) * 100) / 100;\n}\n\nconst rsi = calcRSI(closes);\nconst lastPrice = closes[closes.length - 1];\nlet signal = 'HOLD';\nif (rsi < 35) signal = 'BUY';\nif (rsi > 65) signal = 'SELL';\n\nreturn [{\n  json: {\n    pair: 'BTCUSDT',\n    type: signal,\n    entry: lastPrice,\n    rsi: rsi,\n    price: lastPrice,\n    confidence: Math.round(Math.abs(rsi - 50) * 2),\n    indicator: 'RSI(14)',\n    timeframe: '1H',\n    generated_at: new Date().toISOString()\n  }\n}];"
       },
-      "id": "calc-rsi",
+      "id": "signal-calc",
       "name": "Calculate RSI Signal",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [650, 300]
+      "position": [480, 0]
     },
     {
       "parameters": {
@@ -40,32 +47,38 @@
         "fields": {
           "values": {
             "string": [
-              {"key": "pair", "value": "={{$json[\"pair\"]}}"},
-              {"key": "price", "value": "={{$json[\"price\"]}}"},
-              {"key": "rsi", "value": "={{$json[\"rsi\"]}}"},
-              {"key": "signal", "value": "={{$json[\"signal\"]}}"},
-              {"key": "indicator", "value": "={{$json[\"indicator\"]}}"},
-              {"key": "generated_at", "value": "={{$json[\"timestamp\"]}}"}
+              {"key": "pair", "value": "={{$json.pair}}"},
+              {"key": "type", "value": "={{$json.type}}"},
+              {"key": "entry", "value": "={{$json.entry}}"},
+              {"key": "rsi", "value": "={{$json.rsi}}"},
+              {"key": "price", "value": "={{$json.price}}"},
+              {"key": "confidence", "value": "={{$json.confidence}}"},
+              {"key": "indicator", "value": "={{$json.indicator}}"},
+              {"key": "timeframe", "value": "={{$json.timeframe}}"},
+              {"key": "generated_at", "value": "={{$json.generated_at}}"}
             ]
           }
+        },
+        "options": {
+          "cleanUp": false
         }
       },
-      "id": "save-signal",
-      "name": "Save Signal to MongoDB",
+      "id": "signal-mongo",
+      "name": "Save to MongoDB",
       "type": "n8n-nodes-base.mongoDb",
       "typeVersion": 2,
-      "position": [850, 300]
+      "position": [720, 0]
     }
   ],
   "connections": {
     "Every 1 Hour": {
-      "main": [[{ "node": "Fetch BTC 1H KLINES", "type": "main", "index": 0 }]]
+      "main": [[{"node": "Fetch BTC 1H Klines", "type": "main", "index": 0}]]
     },
-    "Fetch BTC 1H KLINES": {
-      "main": [[{ "node": "Calculate RSI Signal", "type": "main", "index": 0 }]]
+    "Fetch BTC 1H Klines": {
+      "main": [[{"node": "Calculate RSI Signal", "type": "main", "index": 0}]]
     },
     "Calculate RSI Signal": {
-      "main": [[{ "node": "Save Signal to MongoDB", "type": "main", "index": 0 }]]
+      "main": [[{"node": "Save to MongoDB", "type": "main", "index": 0}]]
     }
   }
 }

@@ -1,5 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
+type ApiResponse<T> = { data: T; _offline?: false } | { _offline: true };
+
 function getToken(): string | null {
   return localStorage.getItem('cryptox_token');
 }
@@ -19,7 +21,17 @@ export function setStoredUser(user: { id: string; email: string } | null) {
   else localStorage.removeItem('cryptox_user');
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export function clearAuth() {
+  setToken(null);
+  setStoredUser(null);
+}
+
+async function request<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<ApiResponse<T>> {
+  if (!API_BASE) return { _offline: true };
+
   const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -27,18 +39,25 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const url = API_BASE ? `${API_BASE}${path}` : path;
-
   try {
-    const res = await fetch(url, { ...options, headers });
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      signal: AbortSignal.timeout(8000),
+    });
     if (!res.ok) {
       const body = await res.json().catch(() => ({ error: 'Request failed' }));
       throw new Error(body.error || `HTTP ${res.status}`);
     }
-    return res.json();
+    const data = await res.json();
+    return { data } as ApiResponse<T>;
   } catch (err: any) {
-    if (err.message.includes('Failed to fetch')) {
-      return { _offline: true } as T;
+    if (
+      err.name === 'AbortError' ||
+      err.message === 'Failed to fetch' ||
+      err.message?.includes('Failed to fetch')
+    ) {
+      return { _offline: true };
     }
     throw err;
   }
@@ -47,17 +66,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   auth: {
     register: (email: string, password: string) =>
-      request<{ user: any; token: string }>('/api/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }),
+      request<{ user: { id: string; email: string }; token: string }>(
+        '/api/auth/register',
+        { method: 'POST', body: JSON.stringify({ email, password }) }
+      ),
     login: (email: string, password: string) =>
-      request<{ user: any; token: string }>('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }),
-    me: () => request<{ user: any }>('/api/auth/me'),
+      request<{ user: { id: string; email: string }; token: string }>(
+        '/api/auth/login',
+        { method: 'POST', body: JSON.stringify({ email, password }) }
+      ),
+    me: () => request<{ user: { id: string; email: string } | null }>('/api/auth/me'),
   },
+
   watchlist: {
     get: () => request<{ watchlist: string[] }>('/api/watchlist'),
     save: (coin_ids: string[]) =>
@@ -66,6 +86,7 @@ export const api = {
         body: JSON.stringify({ coin_ids }),
       }),
   },
+
   portfolio: {
     get: () => request<{ portfolio: any[] }>('/api/portfolio'),
     save: (holdings: any[]) =>
@@ -74,14 +95,17 @@ export const api = {
         body: JSON.stringify({ holdings }),
       }),
   },
+
   subscribe: (email: string) =>
     request<{ success: boolean }>('/api/subscribe', {
       method: 'POST',
       body: JSON.stringify({ email }),
     }),
+
   news: {
     get: () => request<{ news: any[] }>('/api/news'),
   },
+
   signals: {
     get: () => request<{ signals: any[] }>('/api/signals'),
   },

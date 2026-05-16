@@ -1,22 +1,24 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { useTickerData } from '@/hooks/useCryptoData';
 import { formatPrice, CRYPTO_COLORS } from '@/types/crypto';
 import {
   Search, X, Star, BarChart3, Newspaper, Activity, TrendingUp,
-  Sun, Moon, Menu, Loader2, Wallet, LogOut,
+  Sun, Moon, Menu, Loader2, Wallet, LogOut, User,
 } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import { useContract } from '@/hooks/useContract';
+import AuthModal from '@/components/AuthModal';
 
 const Header: React.FC = () => {
   const {
     activeTab, setActiveTab, searchQuery, setSearchQuery,
-    showSearch, setShowSearch, setActiveCoin,
+    showSearch, setShowSearch, setActiveCoin, user, signOut,
   } = useAppContext();
   const { theme, setTheme } = useTheme();
   const { account, isConnecting, connectWallet } = useContract();
   const searchRef = useRef<HTMLInputElement>(null);
+  const [showAuth, setShowAuth] = useState(false);
   const { data: tickers, isLoading } = useTickerData();
 
   useEffect(() => {
@@ -145,6 +147,28 @@ const Header: React.FC = () => {
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
 
+            {user ? (
+              <div className="hidden sm:flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 px-3 py-2 rounded-lg cursor-pointer group relative">
+                <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="text-sm font-mono font-medium">{user.email.slice(0, 12)}..</span>
+                <div className="absolute right-0 top-full mt-1 w-40 glass-card p-2 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                  <button
+                    onClick={signOut}
+                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs text-red-400 hover:bg-accent transition-colors"
+                  >
+                    <LogOut className="w-3.5 h-3.5" /> Sign Out
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAuth(true)}
+                className="hidden sm:flex items-center gap-2 bg-secondary/50 text-foreground border border-border px-3 py-2 rounded-lg text-sm font-medium hover:bg-accent transition-colors"
+              >
+                <User className="w-4 h-4" /> Sign In
+              </button>
+            )}
+
             {account ? (
               <div className="hidden sm:flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 px-3 py-2 rounded-lg">
                 <div className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -185,6 +209,7 @@ const Header: React.FC = () => {
           ))}
         </div>
       </div>
+      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
     </header>
   );
 };

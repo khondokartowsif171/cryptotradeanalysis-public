@@ -67,46 +67,46 @@ export const api = {
   auth: {
     register: (email: string, password: string) =>
       request<{ user: { id: string; email: string }; token: string }>(
-        '/api/auth/register',
+        '/auth/register',
         { method: 'POST', body: JSON.stringify({ email, password }) }
       ),
     login: (email: string, password: string) =>
       request<{ user: { id: string; email: string }; token: string }>(
-        '/api/auth/login',
+        '/auth/login',
         { method: 'POST', body: JSON.stringify({ email, password }) }
       ),
-    me: () => request<{ user: { id: string; email: string } | null }>('/api/auth/me'),
+    me: () => request<{ user: { id: string; email: string } | null }>('/auth/me'),
   },
 
   watchlist: {
-    get: () => request<{ watchlist: string[] }>('/api/watchlist'),
+    get: () => request<{ watchlist: string[] }>('/watchlist'),
     save: (coin_ids: string[]) =>
-      request<{ watchlist: string[] }>('/api/watchlist', {
+      request<{ watchlist: string[] }>('/watchlist', {
         method: 'PUT',
         body: JSON.stringify({ coin_ids }),
       }),
   },
 
   portfolio: {
-    get: () => request<{ portfolio: any[] }>('/api/portfolio'),
+    get: () => request<{ portfolio: any[] }>('/portfolio'),
     save: (holdings: any[]) =>
-      request<{ portfolio: any[] }>('/api/portfolio', {
+      request<{ portfolio: any[] }>('/portfolio', {
         method: 'PUT',
         body: JSON.stringify({ holdings }),
       }),
   },
 
   subscribe: (email: string) =>
-    request<{ success: boolean }>('/api/subscribe', {
+    request<{ success: boolean }>('/subscribe', {
       method: 'POST',
       body: JSON.stringify({ email }),
     }),
 
   news: {
-    get: () => request<{ news: any[] }>('/api/news'),
+    get: () => request<{ news: any[] }>('/news'),
   },
 
   signals: {
-    get: () => request<{ signals: any[] }>('/api/signals'),
+    get: () => request<{ signals: any[] }>('/signals'),
   },
 };

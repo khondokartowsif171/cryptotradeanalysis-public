@@ -51,6 +51,7 @@ const Header: React.FC = () => {
     { id: 'signals', label: 'Signals', icon: Activity },
     { id: 'watchlist', label: 'Watchlist', icon: Star },
     { id: 'news', label: 'News', icon: Newspaper },
+    { id: 'admin', label: 'Admin', icon: BarChart3 },
   ];
 
   return (

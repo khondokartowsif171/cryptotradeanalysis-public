@@ -6,6 +6,7 @@ import portfolioRoutes from './routes/portfolio.js';
 import subscribeRoutes from './routes/subscribe.js';
 import newsRoutes from './routes/news.js';
 import signalsRoutes from './routes/signals.js';
+import adminRoutes from './routes/admin.js';
 import { query } from './db/pool.js';
 
 const app = express();
@@ -43,6 +44,7 @@ app.use('/portfolio', portfolioRoutes);
 app.use('/subscribe', subscribeRoutes);
 app.use('/news', newsRoutes);
 app.use('/signals', signalsRoutes);
+app.use('/admin', adminRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });

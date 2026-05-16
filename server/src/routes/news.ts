@@ -11,9 +11,9 @@ router.get('/', async (req, res) => {
       .sort({ published_at: -1 })
       .limit(20)
       .toArray();
-    res.json({ news });
+    res.json({ news: news || [] });
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to fetch news' });
+    res.json({ news: [], _note: 'MongoDB unavailable', error: err.message });
   }
 });
 

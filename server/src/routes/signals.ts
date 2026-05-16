@@ -11,9 +11,9 @@ router.get('/', async (req, res) => {
       .sort({ generated_at: -1 })
       .limit(20)
       .toArray();
-    res.json({ signals });
+    res.json({ signals: signals || [] });
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to fetch signals' });
+    res.json({ signals: [], _note: 'MongoDB unavailable', error: err.message });
   }
 });
 

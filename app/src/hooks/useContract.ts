@@ -10,6 +10,7 @@ declare global {
 }
 import { CONTRACTS, CRX_TOKEN_ABI } from '@/data/contracts';
 import { toast } from '@/components/ui/use-toast';
+import { parseWeb3Error } from '@/lib/utils';
 
 export interface UserInfo {
   balance: string;
@@ -66,9 +67,10 @@ export function useContract() {
         description: `Connected to ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`,
       });
     } catch (err: any) {
+      const parsed = parseWeb3Error(err);
       toast({
-        title: 'Connection Failed',
-        description: err?.message || 'Failed to connect wallet.',
+        title: parsed.title,
+        description: parsed.description,
         variant: 'destructive',
       });
     } finally {

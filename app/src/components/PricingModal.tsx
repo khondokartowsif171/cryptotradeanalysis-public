@@ -5,6 +5,7 @@ import { api, type Plan, type TreasuryConfig } from '@/services/api';
 import { X, Check, Zap, Crown, Shield, Copy, ExternalLink, Loader2, Wallet, ArrowRight } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { BrowserProvider, parseUnits } from 'ethers';
+import { parseWeb3Error } from '@/lib/utils';
 
 interface PricingModalProps {
   open: boolean;
@@ -82,7 +83,8 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onClose }) => {
       }
     } catch (err: any) {
       console.error('Payment error:', err);
-      toast({ title: 'Payment Incomplete', description: err?.message || 'Transaction was rejected.', variant: 'destructive' });
+      const parsed = parseWeb3Error(err);
+      toast({ title: parsed.title, description: parsed.description, variant: 'destructive' });
     } finally {
       setLoading(false);
     }

@@ -5,6 +5,7 @@ import { api, setToken, setStoredUser } from '@/services/api';
 import { X, Mail, Lock, Loader2, LogIn, UserPlus, Wallet, ExternalLink, ShieldCheck, KeyRound, ArrowLeft } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { BrowserProvider } from 'ethers';
+import { parseWeb3Error } from '@/lib/utils';
 
 interface AuthModalProps {
   open: boolean;
@@ -47,9 +48,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
       }
     } catch (err: any) {
       console.error('MetaMask sign-in error:', err);
+      const parsed = parseWeb3Error(err);
       toast({
-        title: 'MetaMask Connection Cancelled',
-        description: err?.message || 'User cancelled or failed wallet authentication.',
+        title: parsed.title,
+        description: parsed.description,
         variant: 'destructive',
       });
     } finally {

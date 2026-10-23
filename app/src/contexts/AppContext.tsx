@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { toast } from '@/components/ui/use-toast';
+import { parseWeb3Error } from '@/lib/utils';
 import { api, setToken, setStoredUser, getStoredUser, clearAuth, type User } from '@/services/api';
 
 interface AppContextType {
@@ -155,9 +156,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       return null;
     } catch (err: any) {
-      const msg = err?.message || 'Wallet authentication failed.';
-      toast({ title: 'Wallet Sign-In Error', description: msg, variant: 'destructive' });
-      return msg;
+      const parsed = parseWeb3Error(err);
+      toast({ title: parsed.title, description: parsed.description, variant: 'destructive' });
+      return parsed.description;
     } finally {
       setAuthLoading(false);
     }

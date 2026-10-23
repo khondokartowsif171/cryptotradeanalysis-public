@@ -4,11 +4,12 @@ import { useTickerData } from '@/hooks/useCryptoData';
 import { formatPrice, CRYPTO_COLORS } from '@/types/crypto';
 import {
   Search, X, Star, BarChart3, Newspaper, Activity, TrendingUp,
-  Sun, Moon, Menu, Loader2, Wallet, LogOut, User,
+  Sun, Moon, Menu, Loader2, Wallet, LogOut, User, Zap, Crown,
 } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import { useContract } from '@/hooks/useContract';
 import AuthModal from '@/components/AuthModal';
+import PricingModal from '@/components/PricingModal';
 
 const Header: React.FC = () => {
   const {
@@ -19,6 +20,7 @@ const Header: React.FC = () => {
   const { account, isConnecting, connectWallet } = useContract();
   const searchRef = useRef<HTMLInputElement>(null);
   const [showAuth, setShowAuth] = useState(false);
+  const [showPricing, setShowPricing] = useState(false);
   const { data: tickers, isLoading } = useTickerData();
 
   useEffect(() => {
@@ -86,6 +88,7 @@ const Header: React.FC = () => {
           </nav>
 
           <div className="flex items-center gap-2">
+            {/* Search Button */}
             <div className="relative">
               <button
                 onClick={() => setShowSearch(!showSearch)}
@@ -140,6 +143,7 @@ const Header: React.FC = () => {
               )}
             </div>
 
+            {/* Theme Toggle */}
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -147,11 +151,40 @@ const Header: React.FC = () => {
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
 
+            {/* Upgrade / Pricing Button */}
+            <button
+              type="button"
+              onClick={() => setShowPricing(true)}
+              className="hidden sm:flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-amber-600/10 hover:from-amber-500/30 hover:to-amber-600/20 text-amber-400 border border-amber-500/30 px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm active:scale-95"
+            >
+              {user?.tier === 'vip' ? (
+                <><Crown className="w-3.5 h-3.5 text-purple-400" /> VIP MEMBER</>
+              ) : user?.tier === 'pro' ? (
+                <><Zap className="w-3.5 h-3.5 text-amber-400" /> PRO TRADER</>
+              ) : (
+                <><Zap className="w-3.5 h-3.5 text-amber-400" /> UPGRADE</>
+              )}
+            </button>
+
+            {/* Auth / User */}
             {user ? (
               <div className="hidden sm:flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 px-3 py-2 rounded-lg cursor-pointer group relative">
                 <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span className="text-sm font-mono font-medium">{user.email.slice(0, 12)}..</span>
-                <div className="absolute right-0 top-full mt-1 w-40 glass-card p-2 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                <span className="text-sm font-mono font-medium">
+                  {user.wallet_address
+                    ? `${user.wallet_address.slice(0, 6)}...${user.wallet_address.slice(-4)}`
+                    : `${user.email.slice(0, 10)}..`}
+                </span>
+                <div className="absolute right-0 top-full mt-1 w-44 glass-card p-2 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                  <div className="px-2 py-1.5 text-[10px] text-muted-foreground border-b border-border/40 mb-1">
+                    Tier: <span className="font-bold text-primary uppercase">{user.tier || 'FREE'}</span>
+                  </div>
+                  <button
+                    onClick={() => setShowPricing(true)}
+                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs text-foreground hover:bg-accent transition-colors"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-amber-400" /> Subscription Plans
+                  </button>
                   <button
                     onClick={signOut}
                     className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs text-red-400 hover:bg-accent transition-colors"
@@ -169,6 +202,7 @@ const Header: React.FC = () => {
               </button>
             )}
 
+            {/* Wallet Connect Status */}
             {account ? (
               <div className="hidden sm:flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 px-3 py-2 rounded-lg">
                 <div className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -178,7 +212,7 @@ const Header: React.FC = () => {
               </div>
             ) : (
               <button
-                onClick={connectWallet}
+                onClick={() => setShowAuth(true)}
                 disabled={isConnecting}
                 className="hidden sm:flex items-center gap-2 bg-gradient-to-r from-[#F0B90B] to-[#F8D12F] text-black px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
               >
@@ -192,24 +226,34 @@ const Header: React.FC = () => {
           </div>
         </div>
 
-        <div className="md:hidden flex items-center gap-1 pb-3 overflow-x-auto">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-                activeTab === item.id
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <item.icon className="w-3.5 h-3.5" />
-              {item.label}
-            </button>
-          ))}
+        <div className="md:hidden flex items-center justify-between pb-3 overflow-x-auto gap-2">
+          <div className="flex items-center gap-1">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                  activeTab === item.id
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <item.icon className="w-3.5 h-3.5" />
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setShowPricing(true)}
+            className="flex items-center gap-1 text-[11px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-1 rounded-md whitespace-nowrap"
+          >
+            <Zap className="w-3 h-3" /> Upgrade
+          </button>
         </div>
       </div>
       <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
+      <PricingModal open={showPricing} onClose={() => setShowPricing(false)} />
     </header>
   );
 };

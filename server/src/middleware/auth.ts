@@ -6,6 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'cryptox-dev-secret-change-in-produ
 export interface AuthPayload {
   userId: string;
   email: string;
+  wallet?: string;
 }
 
 declare global {
@@ -34,3 +35,5 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
+
+export const authenticate = authMiddleware;

@@ -1,6 +1,30 @@
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://cryptox-api.auraajenticai.cloud';
 
 type ApiResponse<T> = { data: T; _offline?: false } | { _offline: true };
+
+export interface User {
+  id: string;
+  email: string;
+  wallet_address?: string;
+  tier?: string;
+  tier_expires_at?: string;
+}
+
+export interface Plan {
+  id: string;
+  name: string;
+  priceUsd: number;
+  badge: string;
+  period?: string;
+  yearlyPriceUsd?: number;
+  features: string[];
+}
+
+export interface TreasuryConfig {
+  EVM: string;
+  TRON: string;
+  acceptedTokens: { symbol: string; networks: string[] }[];
+}
 
 function getToken(): string | null {
   return localStorage.getItem('cryptox_token');
@@ -11,12 +35,12 @@ export function setToken(token: string | null) {
   else localStorage.removeItem('cryptox_token');
 }
 
-export function getStoredUser(): { id: string; email: string } | null {
+export function getStoredUser(): User | null {
   const raw = localStorage.getItem('cryptox_user');
   return raw ? JSON.parse(raw) : null;
 }
 
-export function setStoredUser(user: { id: string; email: string } | null) {
+export function setStoredUser(user: User | null) {
   if (user) localStorage.setItem('cryptox_user', JSON.stringify(user));
   else localStorage.removeItem('cryptox_user');
 }
@@ -30,8 +54,6 @@ async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  if (!API_BASE) return { _offline: true };
-
   const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -66,16 +88,32 @@ async function request<T>(
 export const api = {
   auth: {
     register: (email: string, password: string) =>
-      request<{ user: { id: string; email: string }; token: string }>(
+      request<{ user: User; token: string }>(
         '/auth/register',
         { method: 'POST', body: JSON.stringify({ email, password }) }
       ),
     login: (email: string, password: string) =>
-      request<{ user: { id: string; email: string }; token: string }>(
+      request<{ user: User; token: string }>(
         '/auth/login',
         { method: 'POST', body: JSON.stringify({ email, password }) }
       ),
-    me: () => request<{ user: { id: string; email: string } | null }>('/auth/me'),
+    me: () => request<{ user: User | null }>('/auth/me'),
+    walletNonce: (address: string) =>
+      request<{ nonce: string }>(`/auth/wallet/nonce?address=${encodeURIComponent(address)}`),
+    walletVerify: (address: string, signature: string, nonce: string) =>
+      request<{ user: User; token: string }>('/auth/wallet/verify', {
+        method: 'POST',
+        body: JSON.stringify({ address, signature, nonce }),
+      }),
+  },
+
+  billing: {
+    getPlans: () => request<{ plans: Plan[]; treasury: TreasuryConfig }>('/billing/plans'),
+    submitTx: (data: { plan: string; txHash: string; token: string; network: string }) =>
+      request<{ success: boolean; message: string; tier: string; order: any }>('/billing/submit-tx', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   },
 
   watchlist: {

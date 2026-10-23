@@ -1,11 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { toast } from '@/components/ui/use-toast';
-import { api, setToken, setStoredUser, getStoredUser, clearAuth } from '@/services/api';
-
-interface User {
-  id: string;
-  email: string;
-}
+import { api, setToken, setStoredUser, getStoredUser, clearAuth, type User } from '@/services/api';
 
 interface AppContextType {
   sidebarOpen: boolean;
@@ -30,6 +25,8 @@ interface AppContextType {
   authLoading: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string) => Promise<string | null>;
+  signInWithWallet: (address: string, signer: any) => Promise<string | null>;
+  refreshUser: () => Promise<void>;
   signOut: () => void;
   syncWatchlist: () => Promise<void>;
   saveWatchlist: () => Promise<void>;
@@ -52,10 +49,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [user, setUser] = useState<User | null>(getStoredUser());
   const [authLoading, setAuthLoading] = useState(false);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await api.auth.me();
+      if (!res._offline && res.data.user) {
+        setUser(res.data.user);
+        setStoredUser(res.data.user);
+      }
+    } catch {
+      // offline or unauthenticated
+    }
+  }, []);
+
   useEffect(() => {
     const stored = getStoredUser();
-    if (stored) setUser(stored);
-  }, []);
+    if (stored) {
+      setUser(stored);
+      refreshUser();
+    }
+  }, [refreshUser]);
 
   const syncWatchlist = useCallback(async () => {
     if (!user) return;
@@ -116,6 +128,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
+  const signInWithWallet = useCallback(async (address: string, signer: any): Promise<string | null> => {
+    setAuthLoading(true);
+    try {
+      const nonceRes = await api.auth.walletNonce(address);
+      if (nonceRes._offline) {
+        toast({ title: 'Backend Offline', description: 'Wallet auth temporarily unavailable.', variant: 'destructive' });
+        return 'offline';
+      }
+
+      toast({ title: 'Sign Message', description: 'Please sign the message in MetaMask to confirm identity.' });
+      const signature = await signer.signMessage(nonceRes.data.nonce);
+
+      const verifyRes = await api.auth.walletVerify(address, signature, nonceRes.data.nonce);
+      if (verifyRes._offline) {
+        toast({ title: 'Verification Failed', description: 'Could not reach server.', variant: 'destructive' });
+        return 'offline';
+      }
+
+      setToken(verifyRes.data.token);
+      setStoredUser(verifyRes.data.user);
+      setUser(verifyRes.data.user);
+      toast({
+        title: 'MetaMask Connected & Authenticated!',
+        description: `Signed in as ${address.slice(0, 6)}...${address.slice(-4)}`
+      });
+      return null;
+    } catch (err: any) {
+      const msg = err?.message || 'Wallet authentication failed.';
+      toast({ title: 'Wallet Sign-In Error', description: msg, variant: 'destructive' });
+      return msg;
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
+
   const signOut = useCallback(() => {
     clearAuth();
     setUser(null);
@@ -161,7 +208,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       searchQuery, setSearchQuery, activeCoin, setActiveCoin,
       activeTab, setActiveTab, sortField, sortDirection, setSortField,
       chartTimeframe, setChartTimeframe, showSearch, setShowSearch,
-      user, authLoading, signIn, signUp, signOut,
+      user, authLoading, signIn, signUp, signInWithWallet, refreshUser, signOut,
       syncWatchlist, saveWatchlist,
     }}>
       {children}

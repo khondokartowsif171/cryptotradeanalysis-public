@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth.js';
+import billingRoutes from './routes/billing.js';
 import watchlistRoutes from './routes/watchlist.js';
 import portfolioRoutes from './routes/portfolio.js';
 import subscribeRoutes from './routes/subscribe.js';
@@ -39,6 +40,7 @@ app.get('/debug/db', async (_req, res) => {
 });
 
 app.use('/auth', authRoutes);
+app.use('/billing', billingRoutes);
 app.use('/watchlist', watchlistRoutes);
 app.use('/portfolio', portfolioRoutes);
 app.use('/subscribe', subscribeRoutes);

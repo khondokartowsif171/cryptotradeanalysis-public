@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppContext } from '@/contexts/AppContext';
 import { api, type Plan, type TreasuryConfig } from '@/services/api';
 import { X, Check, Zap, Crown, Shield, Copy, ExternalLink, Loader2, Wallet, ArrowRight } from 'lucide-react';
@@ -32,6 +33,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onClose }) => {
   }, [open]);
 
   if (!open) return null;
+  if (typeof document === 'undefined') return null;
 
   const currentTreasuryAddress = treasury?.EVM || '0x2C2891f4Fb5000e0E288D16DA3f1d780eE77714e';
   const planObj = plans.find(p => p.id === selectedPlan) || plans[1];
@@ -57,12 +59,11 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onClose }) => {
       const provider = new BrowserProvider((window as any).ethereum);
       const signer = await provider.getSigner();
 
-      // Trigger standard native or token transfer
       toast({ title: 'Confirm in MetaMask', description: `Sending $${planObj?.priceUsd || 19} payment to treasury...` });
       
       const tx = await signer.sendTransaction({
         to: currentTreasuryAddress,
-        value: parseUnits('0.001', 18), // native confirmation test/deposit
+        value: parseUnits('0.001', 18),
       });
 
       toast({ title: 'Transaction Submitted!', description: `Tx Hash: ${tx.hash.slice(0, 10)}... Submitting for instant activation.` });
@@ -122,10 +123,10 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onClose }) => {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overflow-y-auto">
       <div
-        className="glass-card w-full max-w-3xl my-8 p-6 md:p-8 relative animate-fade-in border border-primary/30 shadow-2xl bg-[#0d111c]/95 max-h-[90vh] overflow-y-auto"
+        className="glass-card w-full max-w-3xl my-auto p-6 md:p-8 relative animate-fade-in border border-primary/30 shadow-2xl bg-[#0d111c] rounded-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -139,7 +140,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onClose }) => {
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 mb-3">
             <Zap className="w-3.5 h-3.5" /> Institutional SaaS & Quant Intelligence
           </div>
-          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white">
             Choose Your Trading Plan
           </h2>
           <p className="text-sm text-muted-foreground mt-1 max-w-lg mx-auto">
@@ -175,7 +176,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onClose }) => {
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-bold text-base">{p.name}</span>
+                    <span className="font-bold text-base text-white">{p.name}</span>
                     {isCurrent && (
                       <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-md font-mono">
                         Active
@@ -183,7 +184,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onClose }) => {
                     )}
                   </div>
                   <div className="my-3">
-                    <span className="text-3xl font-extrabold font-mono">
+                    <span className="text-3xl font-extrabold font-mono text-white">
                       ${p.priceUsd}
                     </span>
                     <span className="text-xs text-muted-foreground ml-1">
@@ -195,7 +196,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onClose }) => {
                     {p.features.map((feat, i) => (
                       <li key={i} className="flex items-start gap-2">
                         <Check className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
-                        <span className="leading-tight">{feat}</span>
+                        <span className="leading-tight text-gray-300">{feat}</span>
                       </li>
                     ))}
                   </ul>
@@ -218,7 +219,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onClose }) => {
           <div className="bg-[#111622] rounded-2xl border border-primary/20 p-5 md:p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/40 pb-4">
               <div>
-                <h3 className="font-bold text-base flex items-center gap-2">
+                <h3 className="font-bold text-base flex items-center gap-2 text-white">
                   <Wallet className="w-4 h-4 text-primary" />
                   Decentralized Crypto Checkout
                 </h3>
@@ -245,7 +246,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onClose }) => {
                 <label className="text-[11px] font-semibold text-muted-foreground mb-1 block">
                   Official Treasury Wallet Address (EVM)
                 </label>
-                <div className="flex items-center gap-2 bg-secondary/40 border border-border rounded-xl p-2.5 font-mono text-xs">
+                <div className="flex items-center gap-2 bg-secondary/40 border border-border rounded-xl p-2.5 font-mono text-xs text-gray-200">
                   <span className="flex-1 truncate select-all">{currentTreasuryAddress}</span>
                   <button
                     type="button"
@@ -271,7 +272,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onClose }) => {
                     value={txHash}
                     onChange={(e) => setTxHash(e.target.value)}
                     placeholder="Enter 0x... Tx Hash"
-                    className="flex-1 bg-secondary/40 border border-border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-primary"
+                    className="flex-1 bg-secondary/40 border border-border rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-primary"
                   />
                   <button
                     type="submit"
@@ -286,7 +287,8 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onClose }) => {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

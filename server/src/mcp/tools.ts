@@ -4,6 +4,7 @@ import {
   monitorAndManageTrades,
   getTradingPerformance,
   closeAutonomousTrade,
+  getBinanceAccountBalance,
   AutonomousTradeParams,
 } from './tradingEngine.js';
 
@@ -12,6 +13,7 @@ export {
   monitorAndManageTrades,
   getTradingPerformance,
   closeAutonomousTrade,
+  getBinanceAccountBalance,
   AutonomousTradeParams,
 };
 

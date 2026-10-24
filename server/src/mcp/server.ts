@@ -5,7 +5,7 @@ import * as tools from './tools.js';
 export function createCryptoMcpServer() {
   const server = new McpServer({
     name: 'aura-cryptox-mcp',
-    version: '1.1.0',
+    version: '1.2.0',
   });
 
   server.tool(
@@ -120,7 +120,21 @@ export function createCryptoMcpServer() {
     }
   );
 
-  // === NEW AUTONOMOUS AI TRADING TOOLS ===
+  // === AUTONOMOUS AI TRADING TOOLS ===
+
+  server.tool(
+    'crypto_get_binance_account_balance',
+    'Check connected Binance account live spot balances, trading permissions, and trade readiness.',
+    {},
+    async () => {
+      try {
+        const data = await tools.getBinanceAccountBalance();
+        return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+      } catch (err: any) {
+        return { content: [{ type: 'text', text: `Error: ${err.message}` }], isError: true };
+      }
+    }
+  );
 
   server.tool(
     'crypto_execute_autonomous_trade',

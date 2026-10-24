@@ -15,7 +15,7 @@ const mcpServer = createCryptoMcpServer();
 router.get('/info', async (req: Request, res: Response) => {
   res.json({
     name: 'aura-cryptox-mcp',
-    version: '1.1.0',
+    version: '1.2.0',
     description: 'Universal Model Context Protocol (MCP) Server for real-time cryptocurrency intelligence, quantitative trading signals, on-chain portfolio checks, DEX swap routing, and autonomous AI trading.',
     protocol: 'Model Context Protocol (MCP) v2024-11-05',
     transport: {
@@ -52,6 +52,7 @@ router.get('/info', async (req: Request, res: Response) => {
       { name: 'crypto_get_token_metadata', description: 'Canonical contract address, block explorer, network, and official website.', params: ['symbol'] },
       { name: 'crypto_calculate_dex_swap', description: 'DEX swap output calculation, slippage impact, and Uniswap routing path.', params: ['fromToken', 'toToken', 'amount'] },
       // Autonomous Trading Tools
+      { name: 'crypto_get_binance_account_balance', description: 'Check connected Binance account live spot balances and trading readiness.', params: [] },
       { name: 'crypto_execute_autonomous_trade', description: 'Autonomously execute a cryptocurrency trade (BUY/SELL) with algorithmic entry and 1:2.4 TP/SL on Binance live price.', params: ['symbol', 'side', 'amountUsd?', 'leverage?', 'mode?'] },
       { name: 'crypto_monitor_and_manage_trades', description: '24/7 Position Guardian: Scans all active positions, updates live PnL against Binance, and auto-closes on TP/SL.', params: [] },
       { name: 'crypto_get_trading_performance', description: 'Query aggregate win rate %, net realized profit, active unrealized PnL, and recent trade ledger.', params: [] },
@@ -127,6 +128,8 @@ router.post('/execute/:toolName', async (req: Request, res: Response) => {
       case 'crypto_calculate_dex_swap':
         return res.json(await tools.calculateDexSwap(body.fromToken || 'USDT', body.toToken || 'BTC', body.amount || 100));
       // Autonomous Trading Tools Execution
+      case 'crypto_get_binance_account_balance':
+        return res.json(await tools.getBinanceAccountBalance());
       case 'crypto_execute_autonomous_trade':
         return res.json(await tools.executeAutonomousTrade(body));
       case 'crypto_monitor_and_manage_trades':

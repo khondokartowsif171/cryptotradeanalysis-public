@@ -53,6 +53,55 @@ export async function getBinancePrice(symbol: string): Promise<number> {
 }
 
 /**
+ * Query live Binance Spot wallet balance & trading readiness
+ */
+export async function getBinanceAccountBalance() {
+  const apiKey = process.env.BINANCE_API_KEY;
+  const secretKey = process.env.BINANCE_API_SECRET;
+
+  if (!apiKey || !secretKey) {
+    return {
+      connected: false,
+      message: 'Binance API credentials not configured in environment.',
+    };
+  }
+
+  const timestamp = Date.now();
+  const queryString = `timestamp=${timestamp}&recvWindow=5000`;
+  const signature = crypto.createHmac('sha256', secretKey).update(queryString).digest('hex');
+
+  const res = await fetch(`https://api.binance.com/api/v3/account?${queryString}&signature=${signature}`, {
+    headers: { 'X-MBX-APIKEY': apiKey },
+  });
+
+  const data = (await res.json()) as any;
+  if (!res.ok) {
+    throw new Error(`Binance balance query failed: ${data.msg || JSON.stringify(data)}`);
+  }
+
+  const activeBalances = (data.balances || []).filter(
+    (b: any) => parseFloat(b.free) > 0 || parseFloat(b.locked) > 0
+  );
+
+  const usdtBalance = activeBalances.find((b: any) => b.asset === 'USDT');
+  const freeUsdt = usdtBalance ? parseFloat(usdtBalance.free) : 0;
+
+  return {
+    connected: true,
+    accountType: data.accountType,
+    canTrade: data.canTrade,
+    freeUsdt,
+    activeBalances,
+    readyForTrading: freeUsdt >= 5.0,
+    requirementMessage:
+      freeUsdt >= 5.0
+        ? `Ready to execute live trades! Current USDT Spot balance: $${freeUsdt}.`
+        : `Binance API connected successfully! Current Spot USDT balance is $${freeUsdt}. Binance requires minimum $5.00 USDT in Spot Wallet to open a live order. Please transfer USDT to Spot Wallet in Binance app.`,
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+/**
  * Direct HMAC-SHA256 signed order execution on official Binance exchange
  */
 export async function placeBinanceLiveOrder({

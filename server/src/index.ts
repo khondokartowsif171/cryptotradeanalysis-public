@@ -8,6 +8,7 @@ import subscribeRoutes from './routes/subscribe.js';
 import newsRoutes from './routes/news.js';
 import signalsRoutes from './routes/signals.js';
 import adminRoutes from './routes/admin.js';
+import mcpRoutes from './routes/mcp.js';
 import { query } from './db/pool.js';
 
 const app = express();
@@ -48,6 +49,10 @@ app.use('/news', newsRoutes);
 app.use('/signals', signalsRoutes);
 app.use('/admin', adminRoutes);
 
+// Mount Model Context Protocol (MCP) Router
+app.use('/mcp', mcpRoutes);
+app.get('/api/mcp', (_req, res) => res.redirect('/mcp/info'));
+
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
@@ -66,7 +71,7 @@ async function start() {
     console.error('DATABASE_URL:', (process.env.DATABASE_URL || '').replace(/\/\/.*@/, '//user:pass@'));
   }
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`CryptoX API running on port ${PORT}`);
+    console.log(`CryptoX API running on port ${PORT} (with MCP Server at /mcp)`);
   });
 }
 

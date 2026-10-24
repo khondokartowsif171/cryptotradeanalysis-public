@@ -1,53 +1,80 @@
 import React, { useState, useEffect } from 'react';
-import { newsItems } from '@/data/cryptoData';
 import { api } from '@/services/api';
-import { Clock, ExternalLink, RefreshCw, Loader2 } from 'lucide-react';
+import { Clock, ExternalLink, RefreshCw, Loader2, Newspaper, Sparkles } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
 
-const categories = ['All', 'Market', 'Technology', 'Regulation', 'DeFi', 'NFT', 'CBDC', 'Institutional'];
+const categories = ['All', 'Market', 'Technology', 'Regulation', 'DeFi', 'NFT', 'Institutional'];
 
 const NewsFeed: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('All');
-  const [expandedNews, setExpandedNews] = useState<string | null>(null);
-  const [liveNews, setLiveNews] = useState<any[] | null>(null);
+  const [liveNews, setLiveNews] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
+  const fetchNews = async (showToast: boolean = false) => {
+    setLoading(true);
+    try {
       const res = await api.news.get();
-      if (!res._offline && res.data.news.length > 0) {
+      if (!res._offline && res.data?.news && res.data.news.length > 0) {
         setLiveNews(res.data.news);
+        if (showToast) {
+          toast({ title: 'News Refreshed', description: `Loaded ${res.data.news.length} real-time articles.` });
+        }
       }
+    } catch (err: any) {
+      console.error('Failed to load live news:', err);
+    } finally {
       setLoading(false);
-    })();
+    }
+  };
+
+  useEffect(() => {
+    fetchNews(false);
   }, []);
 
-  const items = liveNews || newsItems;
+  const handleOpenArticle = (e: React.MouseEvent, url: string) => {
+    e.stopPropagation();
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   const filtered = activeCategory === 'All'
-    ? items
-    : items.filter((n: any) => n.category === activeCategory);
+    ? liveNews
+    : liveNews.filter((n: any) => n.category === activeCategory);
 
   return (
     <section className="w-full">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold">Latest News</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {liveNews ? 'Live from CryptoCompare via n8n' : 'Demo feed'}
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Newspaper className="w-6 h-6 text-primary" />
+            Latest Crypto News
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Live Global Feed • Cointelegraph Verified
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-          <span>{liveNews ? 'Live' : 'Auto-refresh'}</span>
-        </div>
+        <button
+          onClick={() => fetchNews(true)}
+          disabled={loading}
+          className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors border border-border/30 disabled:opacity-50"
+          title="Refresh news feed"
+        >
+          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" /> : <RefreshCw className="w-3.5 h-3.5" />}
+          <span>{loading ? 'Refreshing...' : 'Refresh Feed'}</span>
+        </button>
       </div>
 
       <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
         {categories.map(cat => (
-          <button key={cat} onClick={() => setActiveCategory(cat)}
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-              activeCategory === cat ? 'bg-primary text-primary-foreground' : 'bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary'
+              activeCategory === cat
+                ? 'bg-primary text-primary-foreground font-bold shadow-md shadow-primary/20'
+                : 'bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary'
             }`}
           >
             {cat}
@@ -55,53 +82,112 @@ const NewsFeed: React.FC = () => {
         ))}
       </div>
 
-      {filtered.length > 0 && (
-        <div className="glass-card-hover overflow-hidden mb-6 cursor-pointer group"
-          onClick={() => setExpandedNews(expandedNews === filtered[0].id ? null : filtered[0].id)}
-        >
-          <div className="md:flex">
-            <div className="md:w-2/5 h-48 md:h-auto overflow-hidden">
-              <img src={filtered[0].image || filtered[0].imageurl} alt={filtered[0].title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-            </div>
-            <div className="p-6 md:w-3/5">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{filtered[0].category}</span>
-                <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> {filtered[0].time || 'recent'}</span>
+      {loading && liveNews.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-12 glass-card">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
+          <p className="text-sm text-muted-foreground">Aggregating live global crypto news...</p>
+        </div>
+      ) : filtered.length > 0 ? (
+        <>
+          {/* Hero Featured Article */}
+          <div
+            className="glass-card-hover overflow-hidden mb-6 cursor-pointer group border border-primary/20 hover:border-primary/40 transition-all rounded-2xl"
+            onClick={(e) => handleOpenArticle(e, filtered[0].url)}
+          >
+            <div className="md:flex">
+              <div className="md:w-2/5 h-56 md:h-auto overflow-hidden bg-secondary/50 relative">
+                <img
+                  src={filtered[0].image}
+                  alt={filtered[0].title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={(e: any) => {
+                    e.target.src = 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=80';
+                  }}
+                />
+                <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground shadow">
+                  FEATURED
+                </span>
               </div>
-              <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors">{filtered[0].title}</h3>
-              <p className="text-sm text-muted-foreground mb-3">{filtered[0].summary || filtered[0].body?.slice(0, 200)}</p>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{filtered[0].source}</span>
-                <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              <div className="p-6 md:w-3/5 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[10px] font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full border border-primary/20">
+                      {filtered[0].category}
+                    </span>
+                    <span className="text-xs text-muted-foreground flex items-center gap-1 font-mono">
+                      <Clock className="w-3 h-3" /> {filtered[0].time}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors leading-snug">
+                    {filtered[0].title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                    {filtered[0].summary}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between pt-4 mt-4 border-t border-border/30">
+                  <span className="text-xs font-semibold text-primary/90 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {filtered[0].source}
+                  </span>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground flex items-center gap-1 transition-colors">
+                    Read Full Story <ExternalLink className="w-3.5 h-3.5 text-primary" />
+                  </span>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Grid Articles */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filtered.slice(1).map((news: any) => (
+              <div
+                key={news.id}
+                className="glass-card-hover overflow-hidden cursor-pointer group flex flex-col justify-between border border-border/40 hover:border-primary/30 transition-all rounded-xl"
+                onClick={(e) => handleOpenArticle(e, news.url)}
+              >
+                <div>
+                  <div className="h-40 overflow-hidden bg-secondary/50 relative">
+                    <img
+                      src={news.image}
+                      alt={news.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e: any) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=80';
+                      }}
+                    />
+                    <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-black/75 text-primary backdrop-blur-sm">
+                      {news.category}
+                    </span>
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-mono">
+                        <Clock className="w-2.5 h-2.5" /> {news.time}
+                      </span>
+                    </div>
+                    <h4 className="text-sm font-semibold mb-2 line-clamp-2 group-hover:text-primary transition-colors leading-snug">
+                      {news.title}
+                    </h4>
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                      {news.summary}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 pt-0 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/20 mt-2">
+                  <span className="font-medium text-foreground/80">{news.source}</span>
+                  <ExternalLink className="w-3.5 h-3.5 group-hover:text-primary transition-colors" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="glass-card p-12 text-center text-muted-foreground">
+          No news articles found in category "{activeCategory}".
         </div>
       )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filtered.slice(1).map((news: any) => (
-          <div key={news.id} className="glass-card-hover overflow-hidden cursor-pointer group"
-            onClick={() => setExpandedNews(expandedNews === news.id ? null : news.id)}
-          >
-            <div className="h-36 overflow-hidden">
-              <img src={news.image || news.imageurl} alt={news.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-            </div>
-            <div className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{news.category}</span>
-                <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Clock className="w-2.5 h-2.5" /> {news.time || 'recent'}</span>
-              </div>
-              <h4 className="text-sm font-semibold mb-2 line-clamp-2 group-hover:text-primary transition-colors">{news.title}</h4>
-              {expandedNews === news.id && <p className="text-xs text-muted-foreground mb-2 animate-fade-in">{news.summary || news.body?.slice(0, 150)}</p>}
-              <span className="text-[10px] text-muted-foreground">{news.source}</span>
-            </div>
-          </div>
-        ))}
-      </div>
     </section>
   );
 };

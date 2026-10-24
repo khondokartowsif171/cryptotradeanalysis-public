@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { BarChart3, Send, Github, Twitter, MessageCircle, Globe, Loader2 } from 'lucide-react';
+import { BarChart3, Send, Github, Twitter, MessageCircle, Globe, Loader2, ExternalLink } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { subscribeEmail } from '@/services/subscribe';
 import { api } from '@/services/api';
+import LegalModal, { LegalDocType } from '@/components/LegalModal';
 
 const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
   const [subscribing, setSubscribing] = useState(false);
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
+  const [activeDocType, setActiveDocType] = useState<LegalDocType>('terms');
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +40,71 @@ const Footer: React.FC = () => {
       setEmail('');
     }
     setSubscribing(false);
+  };
+
+  const openLegal = (type: LegalDocType) => {
+    setActiveDocType(type);
+    setLegalModalOpen(true);
+  };
+
+  const handleLinkClick = (title: string, link: string) => {
+    // Products
+    if (link === 'Spot Trading' || link === 'Futures' || link === 'Options') {
+      toast({ title: 'Launching Quant Desk', description: `Opening trade.auraajenticai.cloud for ${link}...` });
+      window.open('https://trade.auraajenticai.cloud', '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (link === 'Staking') {
+      const stakingEl = document.getElementById('staking') || document.querySelector('[data-view="staking"]');
+      if (stakingEl) {
+        stakingEl.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        toast({ title: 'Staking Panel', description: 'Please select Staking from the navigation bar.' });
+      }
+      return;
+    }
+    if (link === 'Launchpad' || link === 'NFT Marketplace') {
+      toast({ title: 'Coming Soon', description: `${link} is launching in Q4 2026.` });
+      return;
+    }
+
+    // Resources
+    if (link === 'API Documentation') {
+      toast({
+        title: 'CryptoX MCP Server API',
+        description: 'Universal MCP endpoint: https://cryptox-api.auraajenticai.cloud/mcp',
+      });
+      window.open('https://cryptox-api.auraajenticai.cloud/mcp/info', '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (link === 'Whitepaper' || link === 'Research') {
+      window.open('https://auraajenticai.cloud', '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (link === 'Trading Guide' || link === 'Academy' || link === 'Blog') {
+      toast({ title: link, description: 'Educational articles and quantitative guides coming soon.' });
+      return;
+    }
+
+    // Company
+    if (link === 'About Us' || link === 'Partners') {
+      window.open('https://auraajenticai.cloud', '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (link === 'Contact' || link === 'Careers' || link === 'Press Kit' || link === 'Bug Bounty') {
+      window.open('mailto:ceo@auraajenticai.cloud?subject=Aura%20CryptoX%20Inquiry', '_blank');
+      return;
+    }
+
+    // Legal
+    if (link === 'Terms of Service') return openLegal('terms');
+    if (link === 'Privacy Policy') return openLegal('privacy');
+    if (link === 'Cookie Policy') return openLegal('cookies');
+    if (link === 'Risk Disclosure') return openLegal('risk');
+    if (link === 'Compliance') return openLegal('compliance');
+    if (link === 'AML Policy') return openLegal('aml');
+
+    toast({ title: link, description: 'Requested section loaded.' });
   };
 
   const footerLinks = {
@@ -90,20 +158,41 @@ const Footer: React.FC = () => {
               <span className="text-sm text-muted-foreground font-medium">Aura</span>
               <span className="text-lg font-bold">CryptoX</span>
             </div>
-            <p className="text-sm text-muted-foreground mb-4 max-w-xs">
-              Aura CryptoX — Smart crypto trading analytics by Aura Agentic AI. Real-time data, signals, and on-chain staking.
+            <p className="text-sm text-muted-foreground mb-4 max-w-xs leading-relaxed">
+              Aura CryptoX — Smart crypto trading analytics & quantitative signals by Aura Agentic AI. Real-time data, signals, and on-chain staking.
             </p>
+            {/* Social Links */}
             <div className="flex items-center gap-3">
-              <button className="p-2 rounded-lg bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              <button
+                onClick={() => window.open('https://x.com', '_blank', 'noopener,noreferrer')}
+                className="p-2 rounded-lg bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                title="Follow on X (Twitter)"
+                aria-label="X (Twitter)"
+              >
                 <Twitter className="w-4 h-4" />
               </button>
-              <button className="p-2 rounded-lg bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              <button
+                onClick={() => window.open('https://github.com/khondokartowsif171/cryptotradeanalysis-public', '_blank', 'noopener,noreferrer')}
+                className="p-2 rounded-lg bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                title="View GitHub Repository"
+                aria-label="GitHub"
+              >
                 <Github className="w-4 h-4" />
               </button>
-              <button className="p-2 rounded-lg bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              <button
+                onClick={() => window.open('https://t.me/AuraAjent_bot', '_blank', 'noopener,noreferrer')}
+                className="p-2 rounded-lg bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                title="Connect on Telegram (@AuraAjent_bot)"
+                aria-label="Telegram"
+              >
                 <MessageCircle className="w-4 h-4" />
               </button>
-              <button className="p-2 rounded-lg bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              <button
+                onClick={() => window.open('https://auraajenticai.cloud', '_blank', 'noopener,noreferrer')}
+                className="p-2 rounded-lg bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                title="Aura Agentic AI Ecosystem"
+                aria-label="Website"
+              >
                 <Globe className="w-4 h-4" />
               </button>
             </div>
@@ -116,7 +205,10 @@ const Footer: React.FC = () => {
               <ul className="space-y-2.5">
                 {links.map(link => (
                   <li key={link}>
-                    <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    <button
+                      onClick={() => handleLinkClick(title, link)}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left"
+                    >
                       {link}
                     </button>
                   </li>
@@ -132,13 +224,21 @@ const Footer: React.FC = () => {
             &copy; 2026 Aura CryptoX by Aura Agentic AI. All rights reserved. Trading involves risk.
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <button className="hover:text-foreground transition-colors">Terms</button>
-            <button className="hover:text-foreground transition-colors">Privacy</button>
-            <button className="hover:text-foreground transition-colors">Cookies</button>
-            <button className="hover:text-foreground transition-colors">Sitemap</button>
+            <button onClick={() => openLegal('terms')} className="hover:text-foreground transition-colors">Terms</button>
+            <button onClick={() => openLegal('privacy')} className="hover:text-foreground transition-colors">Privacy</button>
+            <button onClick={() => openLegal('cookies')} className="hover:text-foreground transition-colors">Cookies</button>
+            <button onClick={() => openLegal('risk')} className="hover:text-foreground transition-colors">Risk Disclosure</button>
+            <button onClick={() => window.open('https://crypto.auraajenticai.cloud', '_self')} className="hover:text-foreground transition-colors">Sitemap</button>
           </div>
         </div>
       </div>
+
+      {/* Legal Modal Mount */}
+      <LegalModal
+        open={legalModalOpen}
+        onClose={() => setLegalModalOpen(false)}
+        docType={activeDocType}
+      />
     </footer>
   );
 };

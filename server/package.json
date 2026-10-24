@@ -9,6 +9,7 @@
     "migrate": "tsx src/db/migrate.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "ethers": "^6.17.0",

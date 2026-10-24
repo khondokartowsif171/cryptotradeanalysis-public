@@ -11,12 +11,12 @@ const transports = new Map<string, SSEServerTransport>();
 // Dedicated MCP Server instance
 const mcpServer = createCryptoMcpServer();
 
-// GET /mcp/info - Human & AI friendly documentation
+// GET /mcp/info - Documentation & complete tool registry
 router.get('/info', async (req: Request, res: Response) => {
   res.json({
     name: 'aura-cryptox-mcp',
-    version: '1.0.0',
-    description: 'Universal Model Context Protocol (MCP) Server for real-time cryptocurrency intelligence, quantitative trading signals, on-chain portfolio checks, and DEX swap routing.',
+    version: '1.1.0',
+    description: 'Universal Model Context Protocol (MCP) Server for real-time cryptocurrency intelligence, quantitative trading signals, on-chain portfolio checks, DEX swap routing, and autonomous AI trading.',
     protocol: 'Model Context Protocol (MCP) v2024-11-05',
     transport: {
       type: 'SSE (Server-Sent Events)',
@@ -51,6 +51,11 @@ router.get('/info', async (req: Request, res: Response) => {
       { name: 'crypto_check_wallet_portfolio', description: 'On-chain verified balances & USD portfolio valuation across EVM chains.', params: ['walletAddress'] },
       { name: 'crypto_get_token_metadata', description: 'Canonical contract address, block explorer, network, and official website.', params: ['symbol'] },
       { name: 'crypto_calculate_dex_swap', description: 'DEX swap output calculation, slippage impact, and Uniswap routing path.', params: ['fromToken', 'toToken', 'amount'] },
+      // Autonomous Trading Tools
+      { name: 'crypto_execute_autonomous_trade', description: 'Autonomously execute a cryptocurrency trade (BUY/SELL) with algorithmic entry and 1:2.4 TP/SL on Binance live price.', params: ['symbol', 'side', 'amountUsd?', 'leverage?', 'mode?'] },
+      { name: 'crypto_monitor_and_manage_trades', description: '24/7 Position Guardian: Scans all active positions, updates live PnL against Binance, and auto-closes on TP/SL.', params: [] },
+      { name: 'crypto_get_trading_performance', description: 'Query aggregate win rate %, net realized profit, active unrealized PnL, and recent trade ledger.', params: [] },
+      { name: 'crypto_close_autonomous_trade', description: 'Manually close an active trade position at the live market price.', params: ['tradeId'] },
     ],
     status: 'ONLINE',
     author: 'Aura Agentic AI (auraajenticai.cloud)',
@@ -59,7 +64,6 @@ router.get('/info', async (req: Request, res: Response) => {
 
 // GET /mcp - Establish SSE Stream
 router.get('/', async (req: Request, res: Response) => {
-  // If request wants JSON, return info
   if (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers.accept.includes('text/event-stream')) {
     return res.redirect('/mcp/info');
   }
@@ -122,10 +126,20 @@ router.post('/execute/:toolName', async (req: Request, res: Response) => {
         return res.json(tools.getTokenMetadata(body.symbol || 'BTC'));
       case 'crypto_calculate_dex_swap':
         return res.json(await tools.calculateDexSwap(body.fromToken || 'USDT', body.toToken || 'BTC', body.amount || 100));
+      // Autonomous Trading Tools Execution
+      case 'crypto_execute_autonomous_trade':
+        return res.json(await tools.executeAutonomousTrade(body));
+      case 'crypto_monitor_and_manage_trades':
+        return res.json(await tools.monitorAndManageTrades());
+      case 'crypto_get_trading_performance':
+        return res.json(await tools.getTradingPerformance());
+      case 'crypto_close_autonomous_trade':
+        return res.json(await tools.closeAutonomousTrade(body.tradeId));
       default:
         return res.status(404).json({ error: `Unknown tool: ${toolName}` });
     }
   } catch (err: any) {
+    console.error(`MCP Execute error for ${toolName}:`, err);
     return res.status(500).json({ error: err.message });
   }
 });

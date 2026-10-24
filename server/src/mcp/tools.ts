@@ -1,38 +1,87 @@
 import { ethers } from 'ethers';
+import {
+  executeAutonomousTrade,
+  monitorAndManageTrades,
+  getTradingPerformance,
+  closeAutonomousTrade,
+  AutonomousTradeParams,
+} from './tradingEngine.js';
 
-// Fallback Public RPCs
-const POLYGON_RPC = 'https://polygon-rpc.com';
-const BSC_RPC = 'https://binance.llamarpc.com';
-const ETH_RPC = 'https://cloudflare-eth.com';
+export {
+  executeAutonomousTrade,
+  monitorAndManageTrades,
+  getTradingPerformance,
+  closeAutonomousTrade,
+  AutonomousTradeParams,
+};
 
-export const TOKEN_DIRECTORY: Record<string, { name: string; symbol: string; contract: string; network: string; website: string; explorer: string }> = {
-  BTC: { name: 'Bitcoin', symbol: 'BTC', contract: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', network: 'Bitcoin (WBTC on EVM)', website: 'https://bitcoin.org', explorer: 'https://mempool.space' },
-  ETH: { name: 'Ethereum', symbol: 'ETH', contract: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', network: 'Ethereum Mainnet', website: 'https://ethereum.org', explorer: 'https://etherscan.io' },
-  BNB: { name: 'BNB', symbol: 'BNB', contract: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', network: 'BNB Smart Chain', website: 'https://www.binance.com', explorer: 'https://bscscan.com' },
-  SOL: { name: 'Solana', symbol: 'SOL', contract: 'So11111111111111111111111111111111111111112', network: 'Solana', website: 'https://solana.com', explorer: 'https://solscan.io' },
-  XRP: { name: 'XRP', symbol: 'XRP', contract: '0x1d2f0da169ceb9fc7b3144628db156f3f6c60dbe', network: 'XRP Ledger', website: 'https://ripple.com', explorer: 'https://xrpscan.com' },
-  ADA: { name: 'Cardano', symbol: 'ADA', contract: '0x3ee2200efb3400fabb9aacf31297cbdd1d435d47', network: 'Cardano', website: 'https://cardano.org', explorer: 'https://cardanoscan.io' },
-  AVAX: { name: 'Avalanche', symbol: 'AVAX', contract: '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7', network: 'Avalanche C-Chain', website: 'https://avax.network', explorer: 'https://snowtrace.io' },
-  DOGE: { name: 'Dogecoin', symbol: 'DOGE', contract: '0xba2ae424d960c26247dd6c32edc70b295c744c43', network: 'Dogecoin', website: 'https://dogecoin.com', explorer: 'https://dogechain.info' },
-  DOT: { name: 'Polkadot', symbol: 'DOT', contract: '0x7083609fce4d1d8dc0c979aab8c869ea2c873402', network: 'Polkadot', website: 'https://polkadot.network', explorer: 'https://polkadot.subscan.io' },
-  LINK: { name: 'Chainlink', symbol: 'LINK', contract: '0x514910771AF9Ca656af840dff83E8264EcF986CA', network: 'Ethereum (ERC-20)', website: 'https://chain.link', explorer: 'https://etherscan.io/token/0x514910771af9ca656af840dff83e8264ecf986ca' },
-  MATIC: { name: 'Polygon', symbol: 'MATIC', contract: '0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3e6', network: 'Polygon PoS', website: 'https://polygon.technology', explorer: 'https://polygonscan.com' },
-  POL: { name: 'Polygon', symbol: 'POL', contract: '0x455e53CBB86018Ac2B8092FdCd39d8444aFFC3e6', network: 'Polygon PoS', website: 'https://polygon.technology', explorer: 'https://polygonscan.com' },
-  UNI: { name: 'Uniswap', symbol: 'UNI', contract: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', network: 'Ethereum (ERC-20)', website: 'https://uniswap.org', explorer: 'https://etherscan.io/token/0x1f9840a85d5af5bf1d1762f925bdaddc4201f984' },
-  LTC: { name: 'Litecoin', symbol: 'LTC', contract: '0x4338665cbb7b2485a8855a139b75d5e34ab0db94', network: 'Litecoin', website: 'https://litecoin.org', explorer: 'https://blockchair.com/litecoin' },
-  NEAR: { name: 'NEAR Protocol', symbol: 'NEAR', contract: '0x1fa4a73a3f0133f0025378af00236f3abdee5d63', network: 'NEAR', website: 'https://near.org', explorer: 'https://nearblocks.io' },
-  ATOM: { name: 'Cosmos', symbol: 'ATOM', contract: '0x0eb3a705fc54725037cc9e008bdede697f62f335', network: 'Cosmos Hub', website: 'https://cosmos.network', explorer: 'https://atomscan.com' },
-  ARB: { name: 'Arbitrum', symbol: 'ARB', contract: '0x912CE59144191C1204E64559FE8253a0e49E6548', network: 'Arbitrum One', website: 'https://arbitrum.io', explorer: 'https://arbiscan.io/token/0x912ce59144191c1204e64559fe8253a0e49e6548' },
+// Canonical token directory with verified contracts, chains, and explorers
+export const TOKEN_DIRECTORY: Record<
+  string,
+  { name: string; contract: string; chain: string; explorer: string; website: string }
+> = {
+  BTC: {
+    name: 'Bitcoin (Wrapped)',
+    contract: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+    chain: 'Ethereum / Native',
+    explorer: 'https://etherscan.io/token/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+    website: 'https://bitcoin.org',
+  },
+  ETH: {
+    name: 'Ethereum',
+    contract: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    chain: 'Ethereum Native',
+    explorer: 'https://etherscan.io',
+    website: 'https://ethereum.org',
+  },
+  SOL: {
+    name: 'Solana',
+    contract: 'So11111111111111111111111111111111111111112',
+    chain: 'Solana Native',
+    explorer: 'https://solscan.io',
+    website: 'https://solana.com',
+  },
+  BNB: {
+    name: 'BNB',
+    contract: '0xb8c77482e45f1f44de1745f52c74426c631bdd52',
+    chain: 'BNB Chain / BSC',
+    explorer: 'https://bscscan.com',
+    website: 'https://binance.com',
+  },
+  LINK: {
+    name: 'Chainlink',
+    contract: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+    chain: 'Ethereum',
+    explorer: 'https://etherscan.io/token/0x514910771AF9Ca656af840dff83E8264EcF986CA',
+    website: 'https://chain.link',
+  },
+  UNI: {
+    name: 'Uniswap',
+    contract: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
+    chain: 'Ethereum',
+    explorer: 'https://etherscan.io/token/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
+    website: 'https://uniswap.org',
+  },
+  USDT: {
+    name: 'Tether USD',
+    contract: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+    chain: 'Multi-chain',
+    explorer: 'https://etherscan.io/token/0xdAC17F958D2ee523a2206206994597C13D831ec7',
+    website: 'https://tether.to',
+  },
 };
 
 export async function getLivePrice(symbol: string) {
-  const cleanSym = symbol.replace(/USDT$/i, '').toUpperCase();
+  const cleanSym = symbol.toUpperCase().replace('USDT', '');
   const pair = `${cleanSym}USDT`;
-  const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${pair}`);
+  const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${pair}`;
+
+  const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Failed to fetch price for ${pair}: ${res.statusText}`);
+    throw new Error(`Binance API error for ${pair}: ${res.statusText}`);
   }
-  const data: any = await res.json();
+  const data = (await res.json()) as any;
+
   return {
     symbol: cleanSym,
     pair,
@@ -42,86 +91,94 @@ export async function getLivePrice(symbol: string) {
     low24h: parseFloat(data.lowPrice),
     volume: parseFloat(data.volume),
     quoteVolumeUsdt: parseFloat(data.quoteVolume),
-    timestamp: new Date(data.closeTime).toISOString(),
+    timestamp: new Date().toISOString(),
     source: 'Binance Direct Stream',
   };
 }
 
 export async function getMarketOverview() {
-  const topSymbols = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'LINK', 'MATIC'];
-  const promises = topSymbols.map(s => getLivePrice(s).catch(() => null));
-  const results = (await Promise.all(promises)).filter(Boolean) as any[];
+  const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'LINKUSDT', 'AVAXUSDT', 'DOTUSDT'];
+  const res = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+  if (!res.ok) {
+    throw new Error(`Binance API error: ${res.statusText}`);
+  }
+  const allTickers = (await res.json()) as any[];
 
-  const btc = results.find(r => r.symbol === 'BTC');
-  const eth = results.find(r => r.symbol === 'ETH');
+  const tracked = allTickers.filter((t) => symbols.includes(t.symbol));
+  let topVolume = 0;
+  let topGainer = { symbol: 'BTC', change: -999 };
+  let topLoser = { symbol: 'BTC', change: 999 };
 
-  // Calculate top gainers and losers
-  const sorted = [...results].sort((a, b) => b.change24h - a.change24h);
-  const topGainer = sorted[0];
-  const topLoser = sorted[sorted.length - 1];
+  const parsed = tracked.map((t) => {
+    const chg = parseFloat(t.priceChangePercent);
+    const vol = parseFloat(t.quoteVolume);
+    topVolume += vol;
+    const base = t.symbol.replace('USDT', '');
+    if (chg > topGainer.change) topGainer = { symbol: base, change: chg };
+    if (chg < topLoser.change) topLoser = { symbol: base, change: chg };
+    return {
+      symbol: base,
+      price: parseFloat(t.lastPrice),
+      change24h: chg,
+      volumeUsdt: vol,
+    };
+  });
 
-  const totalVol = results.reduce((sum, r) => sum + r.quoteVolumeUsdt, 0);
+  const btc = parsed.find((p) => p.symbol === 'BTC');
+  const eth = parsed.find((p) => p.symbol === 'ETH');
 
   return {
-    trackedCryptos: results.length,
-    btcPrice: btc ? btc.price : 0,
-    btcChange24h: btc ? btc.change24h : 0,
-    ethPrice: eth ? eth.price : 0,
-    ethChange24h: eth ? eth.change24h : 0,
-    estimatedTop10VolumeUsdt: totalVol,
-    topGainer: topGainer ? { symbol: topGainer.symbol, change: `${topGainer.change24h.toFixed(2)}%` } : null,
-    topLoser: topLoser ? { symbol: topLoser.symbol, change: `${topLoser.change24h.toFixed(2)}%` } : null,
-    sentiment: btc && btc.change24h > 1 ? 'Bullish Sentiment' : btc && btc.change24h < -1 ? 'Bearish Retracement' : 'Neutral Consolidation',
+    trackedCryptos: parsed.length,
+    btcPrice: btc?.price || 0,
+    btcChange24h: btc?.change24h || 0,
+    ethPrice: eth?.price || 0,
+    ethChange24h: eth?.change24h || 0,
+    estimatedTop10VolumeUsdt: topVolume,
+    topGainer: { symbol: topGainer.symbol, change: `${topGainer.change.toFixed(2)}%` },
+    topLoser: { symbol: topLoser.symbol, change: `${topLoser.change.toFixed(2)}%` },
+    sentiment: btc && btc.change24h > 1.5 ? 'Bullish Expansion' : btc && btc.change24h < -1.5 ? 'Bearish Retracement' : 'Neutral Consolidation',
     timestamp: new Date().toISOString(),
   };
 }
 
 export async function getTradingSignals(symbol: string = 'BTC') {
-  const cleanSym = symbol.replace(/USDT$/i, '').toUpperCase();
-  const ticker = await getLivePrice(cleanSym);
+  const priceData = await getLivePrice(symbol);
+  const chg = priceData.change24h;
 
-  // Ingest klines for quantitative momentum calculation
-  const klinesRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${cleanSym}USDT&interval=1h&limit=24`);
-  let confidence = 82;
-  let signalType: 'BUY' | 'SELL' | 'HOLD' = 'BUY';
-  let indicator = 'Multi-Timeframe EMA Trend + Volume Breakout';
+  let signal: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
+  let confidence = '75%';
+  let indicator = 'Range Consolidation';
 
-  if (klinesRes.ok) {
-    const klines: any[] = await klinesRes.json();
-    const closes = klines.map(k => parseFloat(k[4]));
-    const first = closes[0];
-    const last = closes[closes.length - 1];
-    const trendPct = ((last - first) / first) * 100;
-
-    if (trendPct > 1.5) {
-      signalType = 'BUY';
-      confidence = Math.min(94, 80 + Math.round(trendPct * 2));
-      indicator = 'Bullish Momentum Expansion + Moving Average Support';
-    } else if (trendPct < -1.5) {
-      signalType = 'SELL';
-      confidence = Math.min(91, 78 + Math.round(Math.abs(trendPct) * 2));
-      indicator = 'Bearish Distribution Pressure + Breakdown Signal';
-    } else {
-      signalType = 'HOLD';
-      confidence = 78;
-      indicator = 'Range Consolidation • Wait for Range Break';
-    }
+  if (chg > 2.0) {
+    signal = 'BUY';
+    confidence = '84%';
+    indicator = 'High Volume Bullish Trend Continuation';
+  } else if (chg < -2.0) {
+    signal = 'SELL';
+    confidence = '82%';
+    indicator = 'Bearish Distribution Pressure + Breakdown Signal';
+  } else {
+    signal = 'HOLD';
+    confidence = '78%';
+    indicator = 'Range Consolidation • Wait for Range Break';
   }
 
-  const price = ticker.price;
-  const targetMultiplier = signalType === 'BUY' ? 1.055 : signalType === 'SELL' ? 0.945 : 1.02;
-  const stopMultiplier = signalType === 'BUY' ? 0.965 : signalType === 'SELL' ? 1.035 : 0.98;
+  const p = priceData.price;
+  const entryLower = p * 0.998;
+  const entryUpper = p * 1.002;
+  const takeProfit = signal === 'BUY' ? p * 1.035 : signal === 'SELL' ? p * 0.945 : p * 1.02;
+  const stopLoss = signal === 'BUY' ? p * 0.98 : signal === 'SELL' ? p * 1.035 : p * 0.98;
 
   return {
-    symbol: cleanSym,
-    pair: `${cleanSym}/USDT`,
-    currentPrice: price,
-    signal: signalType,
-    confidence: `${confidence}%`,
+    symbol: priceData.symbol,
+    pair: `${priceData.symbol}/USDT`,
+    currentPrice: p,
+    signal,
+    confidence,
     indicator,
-    entryZone: `$${(price * 0.998).toFixed(2)} - $${(price * 1.002).toFixed(2)}`,
-    takeProfitTarget: `$${(price * targetMultiplier).toFixed(2)}`,
-    stopLoss: `$${(price * stopMultiplier).toFixed(2)}`,
+    entryZone: `$${entryLower.toFixed(2)} - $${entryUpper.toFixed(2)}`,
+    takeProfitTarget: `$${takeProfit.toFixed(2)}`,
+    stopLoss: `$${stopLoss.toFixed(2)}`,
     riskRewardRatio: '1:2.4',
     timeframe: '1H / 4H Institutional Swing',
     disclaimer: 'Algorithmic quantitative signal for analytical execution. Always manage position size.',
@@ -130,88 +187,68 @@ export async function getTradingSignals(symbol: string = 'BTC') {
 }
 
 export async function getLatestNews(limit: number = 10) {
-  const res = await fetch('https://cointelegraph.com/rss', {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept': 'application/rss+xml, text/xml;q=0.9, */*;q=0.8'
-    }
+  const rssUrl = 'https://cointelegraph.com/rss';
+  const res = await fetch(rssUrl, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AuraCryptoX/1.0' },
   });
-  if (!res.ok) throw new Error(`Cointelegraph returned ${res.status}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch RSS: ${res.statusText}`);
+  }
   const xml = await res.text();
-  
-  const items: any[] = [];
   const itemBlocks = xml.split('<item>').slice(1);
+  const list = [];
 
-  for (let i = 0; i < Math.min(limit, itemBlocks.length); i++) {
+  for (let i = 0; i < Math.min(itemBlocks.length, limit); i++) {
     const block = itemBlocks[i].split('</item>')[0];
     const titleMatch = block.match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/s);
-    const title = titleMatch ? titleMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() : '';
-    if (!title) continue;
-
+    const title = titleMatch ? titleMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() : 'Crypto News';
     const linkMatch = block.match(/<link>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/link>/s);
     const url = linkMatch ? linkMatch[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() : '';
-
-    const pubDateMatch = block.match(/<pubDate>(.*?)<\/pubDate>/);
-    const pubDate = pubDateMatch ? pubDateMatch[1].trim() : new Date().toUTCString();
-
     const descMatch = block.match(/<description>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/description>/s);
-    let summary = descMatch ? descMatch[1].replace(/<[^>]+>/g, '').replace(/<!\[CDATA\[|\]\]>/g, '').trim() : '';
-    if (summary.length > 200) summary = summary.slice(0, 200) + '...';
+    const summary = descMatch ? descMatch[1].replace(/<[^>]+>|<!\[CDATA\[|\]\]>/g, '').trim().slice(0, 180) : '';
+    const pubDateMatch = block.match(/<pubDate>(.*?)<\/pubDate>/);
+    const publishedAt = pubDateMatch ? new Date(pubDateMatch[1].trim()).toISOString() : new Date().toISOString();
 
-    items.push({
+    list.push({
+      id: `ct-${i}-${Date.now()}`,
       title,
       summary,
-      source: 'Cointelegraph',
       url,
-      publishedAt: pubDate,
+      publishedAt,
+      source: 'Cointelegraph',
     });
   }
 
-  return {
-    count: items.length,
-    articles: items,
-  };
+  return list;
 }
 
 export async function checkWalletPortfolio(walletAddress: string) {
   if (!ethers.isAddress(walletAddress)) {
-    throw new Error('Invalid Ethereum / EVM address format.');
+    throw new Error(`Invalid EVM address: ${walletAddress}`);
   }
 
-  // Query native balances across Polygon and Ethereum
-  const polyProvider = new ethers.JsonRpcProvider(POLYGON_RPC);
-  const ethProvider = new ethers.JsonRpcProvider(ETH_RPC);
-
-  const [polyBalanceWei, ethBalanceWei] = await Promise.all([
-    polyProvider.getBalance(walletAddress).catch(() => BigInt(0)),
-    ethProvider.getBalance(walletAddress).catch(() => BigInt(0)),
+  const provider = new ethers.JsonRpcProvider('https://eth.llamarpc.com');
+  const [balanceWei, ethPriceData] = await Promise.all([
+    provider.getBalance(walletAddress),
+    getLivePrice('ETH'),
   ]);
 
-  const polyMatic = parseFloat(ethers.formatEther(polyBalanceWei));
-  const mainnetEth = parseFloat(ethers.formatEther(ethBalanceWei));
-
-  const [maticPriceData, ethPriceData] = await Promise.all([
-    getLivePrice('MATIC').catch(() => ({ price: 0.38 })),
-    getLivePrice('ETH').catch(() => ({ price: 2380 })),
-  ]);
-
-  const maticValuationUsd = polyMatic * maticPriceData.price;
-  const ethValuationUsd = mainnetEth * ethPriceData.price;
-  const totalValuationUsd = maticValuationUsd + ethValuationUsd;
+  const ethBalance = parseFloat(ethers.formatEther(balanceWei));
+  const estimatedUsd = ethBalance * ethPriceData.price;
 
   return {
-    walletAddress,
-    balances: [
-      { network: 'Polygon PoS', asset: 'POL/MATIC', amount: polyMatic.toFixed(4), valuationUsd: `$${maticValuationUsd.toFixed(2)}` },
-      { network: 'Ethereum Mainnet', asset: 'ETH', amount: mainnetEth.toFixed(4), valuationUsd: `$${ethValuationUsd.toFixed(2)}` },
-    ],
-    totalEstimatedValuationUsd: `$${totalValuationUsd.toFixed(2)}`,
-    status: 'Active On-Chain Verified',
+    address: walletAddress,
+    nativeBalance: `${ethBalance.toFixed(4)} ETH`,
+    ethPriceUsd: ethPriceData.price,
+    estimatedPortfolioUsd: parseFloat(estimatedUsd.toFixed(2)),
+    network: 'Ethereum Mainnet',
+    blockExplorer: `https://etherscan.io/address/${walletAddress}`,
+    checkedAt: new Date().toISOString(),
   };
 }
 
 export function getTokenMetadata(symbol: string) {
-  const cleanSym = symbol.replace(/USDT$/i, '').toUpperCase();
+  const cleanSym = symbol.toUpperCase().replace('USDT', '');
   const token = TOKEN_DIRECTORY[cleanSym];
   if (!token) {
     return {

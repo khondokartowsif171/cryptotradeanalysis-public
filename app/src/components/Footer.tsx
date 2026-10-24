@@ -72,9 +72,9 @@ const Footer: React.FC = () => {
     if (link === 'API Documentation') {
       toast({
         title: 'CryptoX MCP Server API',
-        description: 'Universal MCP endpoint: https://cryptox-api.auraajenticai.cloud/mcp',
+        description: 'Connect ChatGPT with https://crypto.auraajenticai.cloud/mcp',
       });
-      window.open('https://cryptox-api.auraajenticai.cloud/mcp/info', '_blank', 'noopener,noreferrer');
+      window.open('/mcp/info', '_blank', 'noopener,noreferrer');
       return;
     }
     if (link === 'Whitepaper' || link === 'Research') {

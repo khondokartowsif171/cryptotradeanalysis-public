@@ -2,10 +2,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import * as tools from './tools.js';
 
-export function createCryptoMcpServer() {
+export function createCryptoMcpServer({ publicOnly = false } = {}) {
   const server = new McpServer({
     name: 'aura-cryptox-mcp',
-    version: '1.2.0',
+    version: publicOnly ? '1.3.0' : '1.2.0',
   });
 
   server.tool(
@@ -14,6 +14,7 @@ export function createCryptoMcpServer() {
     {
       symbol: z.string().describe('The coin symbol, e.g. BTC, ETH, SOL, BNB, XRP, LINK'),
     },
+    { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     async ({ symbol }) => {
       try {
         const data = await tools.getLivePrice(symbol);
@@ -28,6 +29,7 @@ export function createCryptoMcpServer() {
     'crypto_get_market_overview',
     'Get global crypto market metrics, top gainers, top losers, and Bitcoin/Ethereum sentiment.',
     {},
+    { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     async () => {
       try {
         const data = await tools.getMarketOverview();
@@ -44,6 +46,7 @@ export function createCryptoMcpServer() {
     {
       symbol: z.string().optional().describe('Coin symbol, defaults to BTC'),
     },
+    { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     async ({ symbol }) => {
       try {
         const data = await tools.getTradingSignals(symbol || 'BTC');
@@ -60,6 +63,7 @@ export function createCryptoMcpServer() {
     {
       limit: z.number().optional().describe('Number of news items to fetch (default 10)'),
     },
+    { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     async ({ limit }) => {
       try {
         const data = await tools.getLatestNews(limit || 10);
@@ -76,6 +80,7 @@ export function createCryptoMcpServer() {
     {
       walletAddress: z.string().describe('EVM wallet address (0x...)'),
     },
+    { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     async ({ walletAddress }) => {
       try {
         const data = await tools.checkWalletPortfolio(walletAddress);
@@ -92,6 +97,7 @@ export function createCryptoMcpServer() {
     {
       symbol: z.string().describe('Coin symbol, e.g. BTC, ETH, SOL, LINK, UNI'),
     },
+    { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     async ({ symbol }) => {
       try {
         const data = tools.getTokenMetadata(symbol);
@@ -110,6 +116,7 @@ export function createCryptoMcpServer() {
       toToken: z.string().describe('Target token symbol, e.g. BTC, ETH, SOL'),
       amount: z.number().describe('Amount of fromToken to swap'),
     },
+    { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     async ({ fromToken, toToken, amount }) => {
       try {
         const data = await tools.calculateDexSwap(fromToken, toToken, amount);
@@ -119,6 +126,46 @@ export function createCryptoMcpServer() {
       }
     }
   );
+
+  // Public connectors must never inherit the host's exchange account access.
+  if (publicOnly) {
+    server.registerTool('crypto_simulate_trade', {
+      title: 'Simulate a trade',
+      description: 'Calculate a hypothetical paper trade using a current Binance quote. Returns quantity, hypothetical profit/loss and risk levels. Never places orders, accesses private accounts, or writes to the trade ledger. An exit price is a user-provided scenario, not a forecast.',
+      inputSchema: {
+        symbol: z.string().regex(/^[A-Za-z0-9]{2,20}$/),
+        side: z.enum(['BUY', 'SELL']),
+        amountUsd: z.number().finite().positive().max(1000000),
+        leverage: z.number().finite().min(1).max(10).default(1),
+        hypotheticalExitPrice: z.number().finite().positive().optional(),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      _meta: { securitySchemes: [{ type: 'noauth' }] },
+    }, async ({ symbol, side, amountUsd, leverage, hypotheticalExitPrice }) => {
+      try {
+        const quote = await tools.getLivePrice(symbol);
+        if (!Number.isFinite(quote.price) || quote.price <= 0) throw new Error('Invalid market quote');
+        const direction = side === 'BUY' ? 1 : -1;
+        const notionalUsd = amountUsd * leverage;
+        const quantity = notionalUsd / quote.price;
+        const pnl = hypotheticalExitPrice === undefined ? null : direction * (hypotheticalExitPrice - quote.price) * quantity;
+        const result = {
+          mode: 'SIMULATION', persisted: false, exchangeOrderPlaced: false,
+          symbol: quote.symbol, side, marginUsd: amountUsd, leverage, notionalUsd,
+          entryPrice: quote.price, quantity, hypotheticalExitPrice: hypotheticalExitPrice ?? null,
+          hypotheticalPnlUsd: pnl, hypotheticalReturnOnMarginPct: pnl === null ? null : pnl / amountUsd * 100,
+          exampleTakeProfit: quote.price * (1 + direction * 0.055),
+          exampleStopLoss: quote.price * (1 - direction * 0.023),
+          quoteSource: 'Binance public ticker', quotedAt: quote.timestamp,
+          limitations: 'Illustrative paper calculation; excludes fees, funding, slippage, liquidation and exchange execution constraints. No forecast or guarantee.',
+        };
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      } catch (err: any) {
+        return { content: [{ type: 'text', text: `Error: ${err.message}` }], isError: true };
+      }
+    });
+    return server;
+  }
 
   // === AUTONOMOUS AI TRADING TOOLS ===
 

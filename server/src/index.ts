@@ -9,6 +9,7 @@ import newsRoutes from './routes/news.js';
 import signalsRoutes from './routes/signals.js';
 import adminRoutes from './routes/admin.js';
 import mcpRoutes from './routes/mcp.js';
+import connectorRoutes, { canonicalConnector } from './routes/connector.js';
 import { query } from './db/pool.js';
 
 const app = express();
@@ -16,6 +17,7 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 
 app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json({ limit: '1mb' }));
+app.use(canonicalConnector);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -51,6 +53,7 @@ app.use('/admin', adminRoutes);
 
 // Mount Model Context Protocol (MCP) Router
 app.use('/mcp', mcpRoutes);
+app.use('/connector', connectorRoutes);
 app.get('/api/mcp', (_req, res) => res.redirect('/mcp/info'));
 
 app.use((_req, res) => {

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'https://cryptox-api.auraajenticai.cloud';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 type ApiResponse<T> = { data: T; _offline?: false } | { _offline: true };
 

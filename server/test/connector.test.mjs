@@ -10,16 +10,29 @@ import router, { canonicalConnector } from '../dist/routes/connector.js';
 test('public connector supports discovery, isolated requests, safe paper trading and origin validation', { timeout: 15000 }, async (t) => {
   const nativeFetch = globalThis.fetch;
   const exchangeRequests = [];
+  const rpcRequests = [];
+  const savedRpcUrl = process.env.ETH_RPC_URL;
+  process.env.ETH_RPC_URL = 'https://unavailable.example';
   globalThis.fetch = async (input, init) => {
     const url = String(input);
+    if (url === 'https://unavailable.example') return new Response('', { status: 503 });
+    if (url === 'https://ethereum-rpc.publicnode.com') {
+      const batch = JSON.parse(init.body);
+      rpcRequests.push(...batch);
+      return Response.json([{ jsonrpc: '2.0', id: 1, result: '0x1' }, { jsonrpc: '2.0', id: 2, result: '0xde0b6b3a7640000' }]);
+    }
     if (url.startsWith('https://api.binance.com/')) {
       exchangeRequests.push({ url, method: init?.method || 'GET' });
-      assert.match(url, /\/api\/v3\/ticker\/24hr\?symbol=BTCUSDT$/);
+      assert.match(url, /\/api\/v3\/ticker\/24hr\?symbol=(BTC|ETH)USDT$/);
       return Response.json({ lastPrice: '100', priceChangePercent: '2', highPrice: '103', lowPrice: '95', volume: '200', quoteVolume: '20000' });
     }
     return nativeFetch(input, init);
   };
-  t.after(() => { globalThis.fetch = nativeFetch; });
+  t.after(() => {
+    globalThis.fetch = nativeFetch;
+    if (savedRpcUrl === undefined) delete process.env.ETH_RPC_URL;
+    else process.env.ETH_RPC_URL = savedRpcUrl;
+  });
   const app = express();
   app.use(express.json({ limit: '1mb' }));
   app.use(canonicalConnector);
@@ -68,11 +81,15 @@ test('public connector supports discovery, isolated requests, safe paper trading
   assert.equal(swapData.executable, false);
   assert.equal(swapData.estimatedGasUsd, null);
   assert.ok(!('uniswapDeepLink' in swapData));
+  const wallet = await clients[0].callTool({ name: 'crypto_check_wallet_portfolio', arguments: { walletAddress: '0x0000000000000000000000000000000000000000' } });
+  assert.ok(!wallet.isError);
+  assert.equal(JSON.parse(wallet.content[0].text).nativeBalanceWei, '1000000000000000000');
+  assert.deepEqual(rpcRequests.map(request => request.method), ['eth_chainId', 'eth_getBalance']);
   const invalid = await clients[0].callTool({ name: 'crypto_simulate_trade', arguments: { symbol: 'BTC', side: 'BUY', amountUsd: -1 } });
   assert.equal(invalid.isError, true);
   const hidden = await clients[0].callTool({ name: 'crypto_execute_autonomous_trade', arguments: { symbol: 'BTC', side: 'BUY', mode: 'LIVE_BINANCE' } });
   assert.equal(hidden.isError, true);
-  assert.equal(exchangeRequests.length, 4);
+  assert.equal(exchangeRequests.length, 5);
   assert.ok(exchangeRequests.every(request => request.method === 'GET'));
   await clients[1].close();
   assert.equal((await clients[0].listTools()).tools.length, 8);

@@ -229,9 +229,38 @@ export async function checkWalletPortfolio(walletAddress: string) {
     throw new Error(`Invalid EVM address: ${walletAddress}`);
   }
 
-  const provider = new ethers.JsonRpcProvider('https://eth.llamarpc.com');
+  async function getBalanceWithFallback(): Promise<bigint> {
+    const endpoints = [...new Set([
+      process.env.ETH_RPC_URL,
+      'https://ethereum-rpc.publicnode.com',
+      'https://eth.llamarpc.com',
+    ].filter(Boolean))];
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(10000),
+          body: JSON.stringify([
+            { jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] },
+            { jsonrpc: '2.0', id: 2, method: 'eth_getBalance', params: [walletAddress, 'latest'] },
+          ]),
+        });
+        if (!response.ok) continue;
+        const results = await response.json() as any[];
+        if (!Array.isArray(results)) continue;
+        const chain = results.find(result => result.id === 1);
+        const balance = results.find(result => result.id === 2);
+        if (chain?.result !== '0x1' || balance?.error || !/^0x[0-9a-f]+$/i.test(balance?.result)) continue;
+        return BigInt(balance.result);
+      } catch {
+        // Never include a configured provider URL: it may contain credentials.
+      }
+    }
+    throw new Error('Ethereum RPC providers unavailable. Retry later or configure ETH_RPC_URL.');
+  }
   const [balanceWei, ethPriceData] = await Promise.all([
-    provider.getBalance(walletAddress),
+    getBalanceWithFallback(),
     getLivePrice('ETH'),
   ]);
 
@@ -241,6 +270,8 @@ export async function checkWalletPortfolio(walletAddress: string) {
   return {
     address: walletAddress,
     nativeBalance: `${ethBalance.toFixed(4)} ETH`,
+    nativeBalanceWei: balanceWei.toString(),
+    nativeBalanceFullEth: ethers.formatEther(balanceWei),
     ethPriceUsd: ethPriceData.price,
     estimatedPortfolioUsd: parseFloat(estimatedUsd.toFixed(2)),
     network: 'Ethereum Mainnet',

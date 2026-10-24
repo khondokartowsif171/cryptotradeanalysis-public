@@ -52,7 +52,7 @@ const NewsFeed: React.FC = () => {
           </h2>
           <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Live Global Feed • Cointelegraph Verified
+            Latest articles • Cointelegraph RSS
           </p>
         </div>
         <button

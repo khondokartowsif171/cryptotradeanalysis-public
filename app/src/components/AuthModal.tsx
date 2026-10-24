@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppContext } from '@/contexts/AppContext';
 import { api, setToken, setStoredUser } from '@/services/api';
-import { X, Mail, Lock, Loader2, LogIn, UserPlus, Wallet, ExternalLink, ShieldCheck, KeyRound, ArrowLeft } from 'lucide-react';
+import { Check, X, Mail, Lock, Loader2, LogIn, UserPlus, Wallet, ExternalLink, ShieldCheck, KeyRound, ArrowLeft } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
-import { BrowserProvider } from 'ethers';
+import { useWallet } from '@/contexts/WalletContext';
 import { parseWeb3Error } from '@/lib/utils';
 
 interface AuthModalProps {
@@ -13,6 +13,7 @@ interface AuthModalProps {
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
+  const { connectWallet, isConnecting } = useWallet();
   const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,17 +36,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ open, onClose }) => {
 
     setWalletLoading(true);
     try {
-      const provider = new BrowserProvider((window as any).ethereum);
-      const accounts = await provider.send('eth_requestAccounts', []);
-      if (!accounts || accounts.length === 0) {
-        toast({ title: 'No Account', description: 'Please select an account in MetaMask.', variant: 'destructive' });
-        return;
-      }
-      const signer = await provider.getSigner();
-      const err = await signInWithWallet(accounts[0], signer);
-      if (!err || err === 'offline') {
-        onClose();
-      }
+      const connection = await connectWallet();
+      if (!connection) return;
+      const err = await signInWithWallet(connection.account, connection.signer);
+      if (!err) onClose();
     } catch (err: any) {
       console.error('MetaMask sign-in error:', err);
       const parsed = parseWeb3Error(err);

@@ -86,9 +86,9 @@ const CryptoTable: React.FC = () => {
           bVal = b.rank;
       }
       if (typeof aVal === 'string') {
-        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        return sortDirection === 'asc' ? aVal.localeCompare(String(bVal)) : String(bVal).localeCompare(aVal);
       }
-      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      return sortDirection === 'asc' ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal);
     });
 
     return items.slice(0, 50);

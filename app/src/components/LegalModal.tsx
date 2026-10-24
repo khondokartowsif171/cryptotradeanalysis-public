@@ -1,5 +1,5 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { X, ShieldAlert, FileText, Lock, ShieldCheck, Scale } from 'lucide-react';
 
 export type LegalDocType = 'terms' | 'privacy' | 'cookies' | 'risk' | 'compliance' | 'aml';
@@ -125,27 +125,17 @@ const LegalModal: React.FC<LegalModalProps> = ({ open, onClose, docType }) => {
   const currentDoc = contentMap[docType] || contentMap.terms;
   const IconComponent = currentDoc.icon;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overflow-y-auto">
-      <div
-        className="glass-card w-full max-w-2xl my-auto p-6 md:p-8 relative animate-fade-in border border-primary/30 shadow-2xl bg-[#0d111c] rounded-2xl max-h-[85vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-lg bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          aria-label="Close"
-        >
-          <X className="w-5 h-5" />
-        </button>
+  return (
+    <Dialog open={open} onOpenChange={value => { if (!value) onClose(); }}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-6 md:p-8">
 
         <div className="flex items-center gap-3 mb-5">
           <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary">
             <IconComponent className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-bold">{currentDoc.title}</h2>
-            <p className="text-xs text-muted-foreground">{currentDoc.subtitle}</p>
+            <DialogTitle className="text-xl font-bold">{currentDoc.title}</DialogTitle>
+            <DialogDescription className="text-xs">{currentDoc.subtitle}</DialogDescription>
           </div>
         </div>
 
@@ -158,12 +148,11 @@ const LegalModal: React.FC<LegalModalProps> = ({ open, onClose, docType }) => {
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-opacity"
           >
-            I Understand & Accept
+            Close document
           </button>
         </div>
-      </div>
-    </div>,
-    document.body
+      </DialogContent>
+    </Dialog>
   );
 };
 

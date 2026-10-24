@@ -3,9 +3,13 @@ import { BarChart3, Send, Github, Twitter, MessageCircle, Globe, Loader2, Extern
 import { toast } from '@/components/ui/use-toast';
 import { subscribeEmail } from '@/services/subscribe';
 import { api } from '@/services/api';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useAppContext } from '@/contexts/AppContext';
 import LegalModal, { LegalDocType } from '@/components/LegalModal';
 
 const Footer: React.FC = () => {
+  const { setActiveTab } = useAppContext();
+  const [resource, setResource] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [subscribing, setSubscribing] = useState(false);
   const [legalModalOpen, setLegalModalOpen] = useState(false);
@@ -65,6 +69,11 @@ const Footer: React.FC = () => {
     }
     if (link === 'Launchpad' || link === 'NFT Marketplace') {
       toast({ title: 'Coming Soon', description: `${link} is launching in Q4 2026.` });
+      return;
+    }
+
+    if (['Trading Guide', 'Academy', 'Blog', 'Research', 'Whitepaper', 'About Us', 'Sitemap'].includes(link)) {
+      setResource(link);
       return;
     }
 
@@ -151,12 +160,9 @@ const Footer: React.FC = () => {
         <div className="py-10 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-4 lg:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#F0B90B] to-[#F8D12F] flex items-center justify-center">
-                <BarChart3 className="w-4 h-4 text-black" />
-              </div>
-              <span className="text-sm text-muted-foreground font-medium">Aura</span>
-              <span className="text-lg font-bold">CryptoX</span>
+            <div className="mb-4">
+              <img src="/aura-crypto-x-logo.svg" alt="Aura Crypto X" className="w-44 h-14 object-contain dark:hidden" />
+              <img src="/aura-crypto-x-logo-dark.svg" alt="Aura Crypto X" className="w-44 h-14 object-contain hidden dark:block" />
             </div>
             <p className="text-sm text-muted-foreground mb-4 max-w-xs leading-relaxed">
               Aura CryptoX — Smart crypto trading analytics & quantitative signals by Aura Agentic AI. Real-time data, signals, and on-chain staking.
@@ -228,11 +234,28 @@ const Footer: React.FC = () => {
             <button onClick={() => openLegal('privacy')} className="hover:text-foreground transition-colors">Privacy</button>
             <button onClick={() => openLegal('cookies')} className="hover:text-foreground transition-colors">Cookies</button>
             <button onClick={() => openLegal('risk')} className="hover:text-foreground transition-colors">Risk Disclosure</button>
-            <button onClick={() => window.open('https://crypto.auraajenticai.cloud', '_self')} className="hover:text-foreground transition-colors">Sitemap</button>
+            <button onClick={() => setResource('Sitemap')} className="hover:text-foreground transition-colors">Sitemap</button>
           </div>
         </div>
       </div>
 
+      <Dialog open={resource !== null} onOpenChange={value => { if (!value) setResource(null); }}>
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogTitle>{resource}</DialogTitle>
+          <DialogDescription>Aura Crypto X resources</DialogDescription>
+          <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+            {resource === 'About Us' ? <><p>Aura Crypto X is a market analytics web app by Aura Agentic AI, with market charts, watchlists, signals and wallet connectivity.</p><p>Wallet connection and account sign-in are separate. You control wallet permissions and approve any signature or transaction in your wallet.</p><a className="text-cyan-500 underline" href="mailto:ceo@auraajenticai.cloud">Contact Aura Agentic AI</a></> : resource === 'Sitemap' ? <div className="grid grid-cols-2 gap-2">{['overview', 'markets', 'signals', 'watchlist', 'news'].map(tab => <button key={tab} className="rounded-lg border p-3 text-left capitalize hover:bg-accent" onClick={() => { setActiveTab(tab); setResource(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>{tab}</button>)}</div> : <>
+              <p><strong>Read the market:</strong> Use Overview for a selected coin and Markets to compare assets. Search by ticker, choose a chart period and add coins to your Watchlist.</p>
+              <p><strong>Understand signals:</strong> Signals summarize market indicators. Check the timeframe, data freshness and your own risk limits; an indicator does not guarantee an outcome.</p>
+              <p><strong>Review a trade:</strong> Buy and Sell open the order desk. Choose an available DEX or exchange link, verify the asset and network there, then review amounts, fees and slippage before approving anything in your wallet.</p>
+              <p><strong>Connect an assistant:</strong> The public MCP connector provides market tools and paper trade calculations at <code className="break-all">https://crypto.auraajenticai.cloud/mcp</code>. Paper calculations do not place real orders.</p>
+              {resource === 'Blog' && <p>Product note: the installable app provides a Home Screen or desktop shortcut and an offline notice. Live market features require an internet connection.</p>}
+              {(resource === 'Whitepaper' || resource === 'Research') && <p>This technical overview describes the current app. Review the source and connector documentation for implementation details.</p>}
+              <a className="text-cyan-500 underline" href="https://github.com/khondokartowsif171/cryptotradeanalysis-public" target="_blank" rel="noopener noreferrer">Source code and technical documentation</a>
+            </>}
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* Legal Modal Mount */}
       <LegalModal
         open={legalModalOpen}

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import { useContract } from '@/hooks/useContract';
+import { InstallAppButton } from '@/components/InstallApp';
 import AuthModal from '@/components/AuthModal';
 import PricingModal from '@/components/PricingModal';
 
@@ -59,18 +60,12 @@ const Header: React.FC = () => {
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="max-w-[1440px] mx-auto px-4 lg:px-6">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#F0B90B] to-[#F8D12F] flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-black" />
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-sm text-muted-foreground font-medium">Aura</span>
-              <span className="text-xl font-bold tracking-tight">CryptoX</span>
-              <span className="text-[10px] font-semibold bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">BETA</span>
-            </div>
-          </div>
+          <button type="button" onClick={() => setActiveTab('overview')} aria-label="Aura Crypto X home" className="shrink-0">
+            <img src="/aura-crypto-x-logo.svg" alt="Aura Crypto X" className="w-[122px] sm:w-[164px] h-12 object-contain dark:hidden" />
+            <img src="/aura-crypto-x-logo-dark.svg" alt="Aura Crypto X" className="w-[122px] sm:w-[164px] h-12 object-contain hidden dark:block" />
+          </button>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden 2xl:flex items-center gap-1">
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -88,10 +83,11 @@ const Header: React.FC = () => {
           </nav>
 
           <div className="flex items-center gap-2">
+            <InstallAppButton />
             {/* Search Button */}
             <div className="relative">
               <button
-                onClick={() => setShowSearch(!showSearch)}
+                aria-label="Search coins" onClick={() => setShowSearch(!showSearch)}
                 className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
@@ -145,7 +141,7 @@ const Header: React.FC = () => {
 
             {/* Theme Toggle */}
             <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label="Toggle theme" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -204,29 +200,30 @@ const Header: React.FC = () => {
 
             {/* Wallet Connect Status */}
             {account ? (
-              <div className="hidden sm:flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 px-3 py-2 rounded-lg">
+              <div title={account} aria-label={`Connected wallet ${account}`} className="flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 px-2 sm:px-3 py-2 rounded-lg">
+                <Wallet className="w-4 h-4 sm:hidden" />
                 <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span className="text-sm font-mono font-medium">
+                <span className="hidden sm:inline text-sm font-mono font-medium">
                   {account.slice(0, 6)}...{account.slice(-4)}
                 </span>
               </div>
             ) : (
               <button
-                onClick={() => setShowAuth(true)}
-                disabled={isConnecting}
-                className="hidden sm:flex items-center gap-2 bg-gradient-to-r from-[#F0B90B] to-[#F8D12F] text-black px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                onClick={() => void connectWallet()}
+                aria-label="Connect MetaMask wallet" disabled={isConnecting}
+                className="flex items-center gap-2 bg-gradient-to-r from-[#F0B90B] to-[#F8D12F] text-black px-2 sm:px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {isConnecting ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Connecting</>
                 ) : (
-                  <><Wallet className="w-4 h-4" /> Connect Wallet</>
+                  <><Wallet className="w-4 h-4" /><span className="hidden sm:inline">Connect Wallet</span></>
                 )}
               </button>
             )}
           </div>
         </div>
 
-        <div className="md:hidden flex items-center justify-between pb-3 overflow-x-auto gap-2">
+        <div className="2xl:hidden flex items-center justify-between pb-3 overflow-x-auto gap-2">
           <div className="flex items-center gap-1">
             {navItems.map((item) => (
               <button
@@ -244,6 +241,7 @@ const Header: React.FC = () => {
             ))}
           </div>
 
+          {!user && <button aria-label="Sign in" onClick={() => setShowAuth(true)} className="sm:hidden shrink-0 rounded-lg px-2 py-1 text-xs">Sign In</button>}
           <button
             onClick={() => setShowPricing(true)}
             className="flex items-center gap-1 text-[11px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-1 rounded-md whitespace-nowrap"

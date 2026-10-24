@@ -49,12 +49,15 @@ const CoinSidebar: React.FC = () => {
     { label: 'All-Time Low', value: formatPrice(atl) },
   ];
 
-  const handleCopyAddress = () => {
-    navigator.clipboard.writeText(metadata.contractAddress);
-    toast({
-      title: 'Contract Address Copied!',
-      description: `${metadata.name} (${metadata.network}): ${metadata.contractAddress}`,
-    });
+  const handleCopyAddress = async () => {
+    if (!metadata.contractAddress) {
+      toast({ title: 'Address unavailable', description: 'No verified contract address is configured for this asset.' });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(metadata.contractAddress);
+      toast({ title: 'Contract Address Copied!', description: `${metadata.name} (${metadata.network})` });
+    } catch { toast({ title: 'Copy unavailable', description: 'Your browser did not allow clipboard access.', variant: 'destructive' }); }
   };
 
   const handleOpenBuy = () => {
@@ -150,7 +153,7 @@ const CoinSidebar: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <code className="text-xs font-mono text-foreground/90 truncate flex-1 select-all">
-            {metadata.contractAddress}
+            {metadata.contractAddress || 'Not configured'}
           </code>
           <button
             onClick={handleCopyAddress}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useAppContext } from '@/contexts/AppContext';
+import { useWallet } from '@/contexts/WalletContext';
+import { swapLink } from '@/lib/swap';
 import { getCoinMetadata } from '@/data/coinMetadata';
 import { formatPrice } from '@/types/crypto';
 import { X, TrendingUp, TrendingDown, Wallet, ExternalLink, Zap, ArrowRight, ShieldCheck, Check, Sparkles } from 'lucide-react';
@@ -23,7 +24,7 @@ const TradeModal: React.FC<TradeModalProps> = ({
   currentPrice,
   initialMode = 'buy',
 }) => {
-  const { user } = useAppContext();
+  const { account: walletAddress } = useWallet();
   const [mode, setMode] = useState<'buy' | 'sell'>(initialMode);
   const [amount, setAmount] = useState<string>('');
   const [slippage, setSlippage] = useState<string>('0.5');
@@ -40,10 +41,6 @@ const TradeModal: React.FC<TradeModalProps> = ({
   const metadata = getCoinMetadata(coinId, symbol);
   const numAmount = parseFloat(amount) || 0;
   const estimatedTotal = numAmount * currentPrice;
-
-  // Check if wallet is connected (via user or window.ethereum)
-  const walletAddress = user?.wallet_address || 
-    (typeof window !== 'undefined' && (window as any).ethereum?.selectedAddress);
 
   const handlePercentagePill = (pct: number) => {
     // Quick default presets based on coin price
@@ -62,7 +59,7 @@ const TradeModal: React.FC<TradeModalProps> = ({
       return;
     }
 
-    if (numAmount <= 0) {
+    if (!Number.isFinite(numAmount) || numAmount <= 0) {
       toast({
         title: 'Invalid Amount',
         description: `Please enter a valid amount of ${symbol} to ${mode}.`,
@@ -73,11 +70,11 @@ const TradeModal: React.FC<TradeModalProps> = ({
 
     setIsExecuting(true);
     try {
-      // Direct Uniswap / DEX deep-link for instant swap execution
-      const targetToken = metadata.uniswapAddress || metadata.contractAddress;
-      const uniswapUrl = mode === 'buy'
-        ? `https://app.uniswap.org/swap?chain=mainnet&outputCurrency=${targetToken}`
-        : `https://app.uniswap.org/swap?chain=mainnet&inputCurrency=${targetToken}`;
+      const uniswapUrl = swapLink(metadata, mode, amount);
+      if (!uniswapUrl) {
+        toast({ title: 'DEX route unavailable', description: 'This asset has no configured DEX route. Use the Binance or Aura trading link below.', variant: 'destructive' });
+        return;
+      }
 
       toast({
         title: `Redirecting to DEX Swap...`,
@@ -140,7 +137,7 @@ const TradeModal: React.FC<TradeModalProps> = ({
               </span>
             </h2>
             <p className="text-xs text-muted-foreground">
-              Institutional Trade Execution & Decentralized Web3 Routing
+              Choose a trading venue and review your order there.
             </p>
           </div>
         </div>
@@ -240,7 +237,7 @@ const TradeModal: React.FC<TradeModalProps> = ({
             </span>
           </div>
           <div className="flex justify-between text-muted-foreground">
-            <span>Slippage Tolerance</span>
+            <span>Review slippage in the DEX</span>
             <div className="flex gap-1">
               {['0.1', '0.5', '1.0'].map((s) => (
                 <button
@@ -258,7 +255,7 @@ const TradeModal: React.FC<TradeModalProps> = ({
           </div>
           <div className="flex justify-between text-muted-foreground">
             <span>Routing Engine</span>
-            <span className="text-emerald-400 font-medium">Uniswap v3 + Binance Smart API</span>
+            <span className="text-emerald-400 font-medium">External DEX / exchange links</span>
           </div>
         </div>
 
@@ -276,7 +273,7 @@ const TradeModal: React.FC<TradeModalProps> = ({
             }`}
           >
             <Wallet className="w-4 h-4" />
-            {mode === 'buy' ? `1-Click MetaMask Swap (${symbol})` : `1-Click MetaMask Sell (${symbol})`}
+            {mode === 'buy' ? `Review Buy on Uniswap (${symbol})` : `Review Sell on Uniswap (${symbol})`}
           </button>
 
           {/* Institutional Quant Terminal Button */}

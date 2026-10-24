@@ -1,16 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect, useCallback } from 'react';
-import { BrowserProvider, Contract, formatEther, parseEther } from 'ethers';
-
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
-import { CONTRACTS, CRX_TOKEN_ABI } from '@/data/contracts';
+import { useCallback } from 'react';
+import { useWallet } from '@/contexts/WalletContext';
+import { formatEther, parseEther } from 'ethers';
 import { toast } from '@/components/ui/use-toast';
-import { parseWeb3Error } from '@/lib/utils';
 
 export interface UserInfo {
   balance: string;
@@ -28,87 +21,7 @@ export interface PlatformStats {
 }
 
 export function useContract() {
-  const [account, setAccount] = useState<string | null>(null);
-  const [provider, setProvider] = useState<BrowserProvider | null>(null);
-  const [contract, setContract] = useState<Contract | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [chainId, setChainId] = useState<number | null>(null);
-
-  const connectWallet = useCallback(async () => {
-    if (!window.ethereum) {
-      toast({
-        title: 'MetaMask Required',
-        description: 'Please install MetaMask to connect your wallet.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsConnecting(true);
-    try {
-      const provider = new BrowserProvider(window.ethereum);
-      const accounts = await provider.send('eth_requestAccounts', []);
-      const network = await provider.getNetwork();
-      const signer = await provider.getSigner();
-
-      const tokenContract = new Contract(
-        CONTRACTS.CryptoXToken.address,
-        CRX_TOKEN_ABI,
-        signer
-      );
-
-      setProvider(provider);
-      setAccount(accounts[0]);
-      setContract(tokenContract);
-      setChainId(Number(network.chainId));
-
-      toast({
-        title: 'Wallet Connected',
-        description: `Connected to ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`,
-      });
-    } catch (err: any) {
-      const parsed = parseWeb3Error(err);
-      toast({
-        title: parsed.title,
-        description: parsed.description,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsConnecting(false);
-    }
-  }, []);
-
-  const disconnectWallet = useCallback(() => {
-    setAccount(null);
-    setProvider(null);
-    setContract(null);
-    setChainId(null);
-  }, []);
-
-  useEffect(() => {
-    if (!window.ethereum) return;
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length === 0) {
-        disconnectWallet();
-      } else {
-        setAccount(accounts[0]);
-        connectWallet();
-      }
-    };
-
-    const handleChainChanged = () => {
-      connectWallet();
-    };
-
-    window.ethereum.on('accountsChanged', handleAccountsChanged);
-    window.ethereum.on('chainChanged', handleChainChanged);
-
-    return () => {
-      window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
-      window.ethereum?.removeListener('chainChanged', handleChainChanged);
-    };
-  }, [connectWallet, disconnectWallet]);
+  const { account, provider, contract, isConnecting, chainId, connectWallet, disconnectWallet } = useWallet();
 
   const stake = useCallback(
     async (amount: string) => {

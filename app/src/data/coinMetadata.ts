@@ -180,7 +180,7 @@ export function getCoinMetadata(coinId: string, fallbackSymbol: string = 'BTC'):
     symbol: fallbackSymbol.toUpperCase(),
     website: `https://coinmarketcap.com/currencies/${normalized}`,
     explorer: `https://blockchair.com/search?q=${fallbackSymbol}`,
-    contractAddress: '0x' + normalized.slice(0, 6).padEnd(40, '0'),
+    contractAddress: '',
     network: 'Decentralized Asset',
     binancePair: `${fallbackSymbol.toUpperCase()}USDT`,
   };

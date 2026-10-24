@@ -1,6 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-type ApiResponse<T> = { data: T; _offline?: false } | { _offline: true };
+type ApiResponse<T> = { data: T; _offline?: false } | { _offline: true; data?: never };
 
 export interface User {
   id: string;

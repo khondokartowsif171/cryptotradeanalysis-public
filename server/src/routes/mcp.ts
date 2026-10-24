@@ -8,9 +8,6 @@ const router = Router();
 // Store active transports by sessionId
 const transports = new Map<string, SSEServerTransport>();
 
-// Dedicated MCP Server instance
-const mcpServer = createCryptoMcpServer();
-
 // GET /mcp/info - Documentation & complete tool registry
 router.get('/info', async (req: Request, res: Response) => {
   res.json({
@@ -70,6 +67,8 @@ router.get('/', async (req: Request, res: Response) => {
   }
 
   try {
+    // Protocol state and transport must be isolated for each client session.
+    const mcpServer = createCryptoMcpServer();
     const transport = new SSEServerTransport('/mcp/messages', res);
     const sessionId = transport.sessionId;
     transports.set(sessionId, transport);
@@ -97,7 +96,8 @@ router.post('/messages', async (req: Request, res: Response) => {
   }
 
   try {
-    await transport.handlePostMessage(req, res);
+    // express.json() already consumed the stream; pass its parsed body to the SDK.
+    await transport.handlePostMessage(req, res, req.body);
   } catch (err: any) {
     console.error('Error handling MCP message:', err);
     if (!res.headersSent) {

@@ -1,7 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { parseWeb3Error } from '@/lib/utils';
+import { activeTier,openPlans } from '@/lib/subscription';
 import { api, setToken, setStoredUser, getStoredUser, clearAuth, type User } from '@/services/api';
+
+interface MessageSigner { signMessage: (message: string) => Promise<string> }
+const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'Request failed';
 
 interface AppContextType {
   sidebarOpen: boolean;
@@ -26,8 +30,9 @@ interface AppContextType {
   authLoading: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string) => Promise<string | null>;
-  signInWithWallet: (address: string, signer: any) => Promise<string | null>;
+  signInWithWallet: (address: string, signer: MessageSigner) => Promise<string | null>;
   refreshUser: () => Promise<void>;
+  linkWallet: (address: string, signer: MessageSigner) => Promise<boolean>;
   signOut: () => void;
   syncWatchlist: () => Promise<void>;
   saveWatchlist: () => Promise<void>;
@@ -38,6 +43,7 @@ const AppContext = createContext<AppContextType>({} as AppContextType);
 export const useAppContext = () => useContext(AppContext);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const sessionVersion = useRef(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [watchlist, setWatchlistState] = useState<string[]>(['btc', 'eth', 'sol', 'bnb', 'xrp']);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,13 +55,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [showSearch, setShowSearch] = useState(false);
   const [user, setUser] = useState<User | null>(getStoredUser());
   const [authLoading, setAuthLoading] = useState(false);
+  const userId = user?.id;
 
   const refreshUser = useCallback(async () => {
+    const version = sessionVersion.current;
     try {
       const res = await api.auth.me();
-      if (!res._offline && res.data.user) {
+      if (version !== sessionVersion.current) return;
+      if (!res._offline) {
         setUser(res.data.user);
         setStoredUser(res.data.user);
+        if (!res.data.user) clearAuth();
       }
     } catch {
       // offline or unauthenticated
@@ -70,10 +80,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [refreshUser]);
 
+  useEffect(() => {
+    if (!userId) return;
+    const refresh = () => { if (document.visibilityState === 'visible') void refreshUser(); };
+    const timer = window.setInterval(refresh,60_000);
+    document.addEventListener('visibilitychange',refresh);
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange',refresh); };
+  },[userId,refreshUser]);
+
+  const linkWallet = useCallback(async (address: string, signer: MessageSigner) => {
+    const version = sessionVersion.current;
+    try {
+      const nonce = await api.auth.walletNonce(address,'link');
+      if (nonce._offline) throw new Error('Account server is unavailable. No wallet was linked');
+      const signature = await signer.signMessage(nonce.data.nonce);
+      const result = await api.auth.walletLink(address,signature,nonce.data.nonce);
+      if (version !== sessionVersion.current) return false;
+      if (result._offline) throw new Error('Wallet linking could not be confirmed. Retry later');
+      sessionVersion.current++;
+      setToken(result.data.token); setStoredUser(result.data.user); setUser(result.data.user);
+      toast({ title: 'Payment wallet linked',description: 'Your wallet identity was verified. No payment was sent.' });
+      return true;
+    } catch(error) { const parsed = parseWeb3Error(error); toast({ ...parsed,variant: 'destructive' }); return false; }
+  },[]);
+
   const syncWatchlist = useCallback(async () => {
     if (!user) return;
+    const version = sessionVersion.current;
     const res = await api.watchlist.get();
-    if (!res._offline && res.data.watchlist.length > 0) {
+    if (version !== sessionVersion.current) return;
+    if (!res._offline) {
       setWatchlistState(res.data.watchlist);
     }
   }, [user]);
@@ -84,10 +120,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [user, watchlist]);
 
   useEffect(() => {
-    if (user) syncWatchlist();
+    if (user) void syncWatchlist().catch(() => {});
   }, [user, syncWatchlist]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<string | null> => {
+    const version = ++sessionVersion.current;
     setAuthLoading(true);
     try {
       const res = await api.auth.login(email, password);
@@ -95,20 +132,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toast({ title: 'Backend Offline', description: 'Login unavailable. Running in offline mode.', variant: 'destructive' });
         return 'offline';
       }
+      if (version !== sessionVersion.current) return 'A different sign-in was started';
       setToken(res.data.token);
       setStoredUser(res.data.user);
       setUser(res.data.user);
       toast({ title: 'Welcome Back!', description: `Signed in as ${res.data.user.email}` });
       return null;
-    } catch (err: any) {
-      toast({ title: 'Login Failed', description: err.message, variant: 'destructive' });
-      return err.message;
+    } catch (err) {
+      toast({ title: 'Login Failed', description: errorMessage(err), variant: 'destructive' });
+      return errorMessage(err);
     } finally {
       setAuthLoading(false);
     }
   }, []);
 
   const signUp = useCallback(async (email: string, password: string): Promise<string | null> => {
+    const version = ++sessionVersion.current;
     setAuthLoading(true);
     try {
       const res = await api.auth.register(email, password);
@@ -116,20 +155,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toast({ title: 'Backend Offline', description: 'Registration unavailable.', variant: 'destructive' });
         return 'offline';
       }
+      if (version !== sessionVersion.current) return 'A different sign-in was started';
       setToken(res.data.token);
       setStoredUser(res.data.user);
       setUser(res.data.user);
       toast({ title: 'Account Created!', description: `Welcome ${res.data.user.email}` });
       return null;
-    } catch (err: any) {
-      toast({ title: 'Registration Failed', description: err.message, variant: 'destructive' });
-      return err.message;
+    } catch (err) {
+      toast({ title: 'Registration Failed', description: errorMessage(err), variant: 'destructive' });
+      return errorMessage(err);
     } finally {
       setAuthLoading(false);
     }
   }, []);
 
-  const signInWithWallet = useCallback(async (address: string, signer: any): Promise<string | null> => {
+  const signInWithWallet = useCallback(async (address: string, signer: MessageSigner): Promise<string | null> => {
+    const version = ++sessionVersion.current;
     setAuthLoading(true);
     try {
       const nonceRes = await api.auth.walletNonce(address);
@@ -147,6 +188,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return 'offline';
       }
 
+      if (version !== sessionVersion.current) return 'A different sign-in was started';
       setToken(verifyRes.data.token);
       setStoredUser(verifyRes.data.user);
       setUser(verifyRes.data.user);
@@ -155,7 +197,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         description: `Signed in as ${address.slice(0, 6)}...${address.slice(-4)}`
       });
       return null;
-    } catch (err: any) {
+    } catch (err) {
       const parsed = parseWeb3Error(err);
       toast({ title: parsed.title, description: parsed.description, variant: 'destructive' });
       return parsed.description;
@@ -165,6 +207,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const signOut = useCallback(() => {
+    sessionVersion.current++;
     clearAuth();
     setUser(null);
     setWatchlistState(['btc', 'eth', 'sol', 'bnb', 'xrp']);
@@ -176,21 +219,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setWatchlist = useCallback((ids: string[]) => setWatchlistState(ids), []);
 
   const toggleWatchlist = useCallback((id: string) => {
-    setWatchlistState(prev => {
-      const isInList = prev.includes(id);
-      if (isInList) {
-        toast({ title: 'Removed from Watchlist', description: `Coin removed from your watchlist.` });
-        const next = prev.filter(item => item !== id);
-        if (user) api.watchlist.save(next);
-        return next;
-      } else {
-        toast({ title: 'Added to Watchlist', description: `Coin added to your watchlist.` });
-        const next = [...prev, id];
-        if (user) api.watchlist.save(next);
-        return next;
-      }
-    });
-  }, [user]);
+    const remove = watchlist.includes(id);
+    if (!remove && activeTier(user) === 'free' && watchlist.length >= 5) {
+      toast({ title: 'Free watchlist limit',description: 'Free supports 5 coins. Choose Pro or VIP to add more.' }); openPlans(); return;
+    }
+    const next = remove ? watchlist.filter(coin => coin !== id) : [...watchlist,id];
+    if (!user) { setWatchlistState(next); return; }
+    const version = sessionVersion.current;
+    void api.watchlist.save(next).then(result => {
+      if (version !== sessionVersion.current) return;
+      if (result._offline) throw new Error('Watchlist was not saved. Reconnect and retry');
+      setWatchlistState(result.data.watchlist);
+      toast({ title: remove ? 'Removed from Watchlist' : 'Added to Watchlist' });
+    }).catch(error => toast({ title: 'Watchlist not saved',description: error.message,variant: 'destructive' }));
+  },[user,watchlist]);
 
   const setSortField = useCallback((field: string) => {
     setSortFieldState(prev => {
@@ -210,7 +252,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       activeTab, setActiveTab, sortField, sortDirection, setSortField,
       chartTimeframe, setChartTimeframe, showSearch, setShowSearch,
       user, authLoading, signIn, signUp, signInWithWallet, refreshUser, signOut,
-      syncWatchlist, saveWatchlist,
+      syncWatchlist, saveWatchlist, linkWallet,
     }}>
       {children}
     </AppContext.Provider>

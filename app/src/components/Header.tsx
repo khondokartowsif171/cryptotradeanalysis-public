@@ -9,6 +9,7 @@ import {
 import { useTheme } from '@/components/theme-provider';
 import { useContract } from '@/hooks/useContract';
 import { InstallAppButton } from '@/components/InstallApp';
+import { activeTier } from '@/lib/subscription';
 import AuthModal from '@/components/AuthModal';
 import PricingModal from '@/components/PricingModal';
 
@@ -23,6 +24,13 @@ const Header: React.FC = () => {
   const [showAuth, setShowAuth] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
   const { data: tickers, isLoading } = useTickerData();
+
+  useEffect(() => {
+    const pricing = () => setShowPricing(true);
+    const signin = () => setShowAuth(true);
+    window.addEventListener('cryptox:pricing',pricing); window.addEventListener('cryptox:signin',signin);
+    return () => { window.removeEventListener('cryptox:pricing',pricing); window.removeEventListener('cryptox:signin',signin); };
+  },[]);
 
   useEffect(() => {
     if (showSearch && searchRef.current) searchRef.current.focus();
@@ -153,9 +161,9 @@ const Header: React.FC = () => {
               onClick={() => setShowPricing(true)}
               className="hidden sm:flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-amber-600/10 hover:from-amber-500/30 hover:to-amber-600/20 text-amber-400 border border-amber-500/30 px-3 py-2 rounded-lg text-xs font-bold transition shadow-sm active:scale-95"
             >
-              {user?.tier === 'vip' ? (
+              {activeTier(user) === 'vip' ? (
                 <><Crown className="w-3.5 h-3.5 text-purple-400" /> VIP MEMBER</>
-              ) : user?.tier === 'pro' ? (
+              ) : activeTier(user) === 'pro' ? (
                 <><Zap className="w-3.5 h-3.5 text-amber-400" /> PRO TRADER</>
               ) : (
                 <><Zap className="w-3.5 h-3.5 text-amber-400" /> UPGRADE</>
@@ -173,7 +181,7 @@ const Header: React.FC = () => {
                 </span>
                 <div className="absolute right-0 top-full mt-1 w-44 glass-card p-2 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                   <div className="px-2 py-1.5 text-[10px] text-muted-foreground border-b border-border/40 mb-1">
-                    Tier: <span className="font-bold text-primary uppercase">{user.tier || 'FREE'}</span>
+                    Tier: <span className="font-bold text-primary uppercase">{activeTier(user)}</span>
                   </div>
                   <button
                     onClick={() => setShowPricing(true)}

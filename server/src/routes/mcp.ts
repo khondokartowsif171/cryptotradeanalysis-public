@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { createCryptoMcpServer } from '../mcp/server.js';
+import { authMiddleware } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/entitlements.js';
 import * as tools from '../mcp/tools.js';
 
 const router = Router();
@@ -59,6 +61,9 @@ router.get('/info', async (req: Request, res: Response) => {
     author: 'Aura Agentic AI (auraajenticai.cloud)',
   });
 });
+
+// This legacy transport can access the operator's exchange account. It is never a client API.
+router.use(authMiddleware,requireAdmin);
 
 // GET /mcp - Establish SSE Stream
 router.get('/', async (req: Request, res: Response) => {

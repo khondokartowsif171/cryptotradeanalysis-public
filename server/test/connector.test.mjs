@@ -42,6 +42,7 @@ test('public connector supports discovery, isolated requests, safe paper trading
     assert.equal(tools.length, 8);
     assert.ok(tools.some(tool => tool.name === 'crypto_simulate_trade'));
     assert.ok(!tools.some(tool => /autonomous|binance_account|trading_performance/.test(tool.name)));
+    assert.ok(tools.every(tool => tool.annotations?.readOnlyHint === true));
   }
   const paper = async (side, exit) => {
     const result = await clients[0].callTool({ name: 'crypto_simulate_trade', arguments: {
@@ -58,11 +59,20 @@ test('public connector supports discovery, isolated requests, safe paper trading
   };
   await paper('BUY', 110);
   await paper('SELL', 90);
+  const signal = await clients[0].callTool({ name: 'crypto_get_trading_signals', arguments: { symbol: 'BTC' } });
+  const signalData = JSON.parse(signal.content[0].text);
+  assert.equal(signalData.calibratedProbability, null);
+  assert.ok(!('confidence' in signalData));
+  const swap = await clients[0].callTool({ name: 'crypto_calculate_dex_swap', arguments: { fromToken: 'USDT', toToken: 'BTC', amount: 10 } });
+  const swapData = JSON.parse(swap.content[0].text);
+  assert.equal(swapData.executable, false);
+  assert.equal(swapData.estimatedGasUsd, null);
+  assert.ok(!('uniswapDeepLink' in swapData));
   const invalid = await clients[0].callTool({ name: 'crypto_simulate_trade', arguments: { symbol: 'BTC', side: 'BUY', amountUsd: -1 } });
   assert.equal(invalid.isError, true);
   const hidden = await clients[0].callTool({ name: 'crypto_execute_autonomous_trade', arguments: { symbol: 'BTC', side: 'BUY', mode: 'LIVE_BINANCE' } });
   assert.equal(hidden.isError, true);
-  assert.equal(exchangeRequests.length, 2);
+  assert.equal(exchangeRequests.length, 4);
   assert.ok(exchangeRequests.every(request => request.method === 'GET'));
   await clients[1].close();
   assert.equal((await clients[0].listTools()).tools.length, 8);

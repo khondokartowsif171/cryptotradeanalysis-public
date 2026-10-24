@@ -27,7 +27,7 @@ export function createCryptoMcpServer({ publicOnly = false } = {}) {
 
   server.tool(
     'crypto_get_market_overview',
-    'Get global crypto market metrics, top gainers, top losers, and Bitcoin/Ethereum sentiment.',
+    'Get a snapshot of ten tracked Binance USDT markets, their combined volume and price-change-based sentiment. Not total global market capitalization or dominance.',
     {},
     { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     async () => {
@@ -42,7 +42,7 @@ export function createCryptoMcpServer({ publicOnly = false } = {}) {
 
   server.tool(
     'crypto_get_trading_signals',
-    'Get institutional quantitative trading signals (BUY/SELL/HOLD), entry zones, targets, stop-losses, and confidence scores.',
+    'Get a simple BUY/SELL/HOLD heuristic based on 24-hour price change and illustrative risk levels. Not a calibrated forecast or validated trading strategy.',
     {
       symbol: z.string().optional().describe('Coin symbol, defaults to BTC'),
     },
@@ -50,6 +50,15 @@ export function createCryptoMcpServer({ publicOnly = false } = {}) {
     async ({ symbol }) => {
       try {
         const data = await tools.getTradingSignals(symbol || 'BTC');
+        if (publicOnly) {
+          const { confidence, indicator, timeframe, riskRewardRatio, disclaimer, ...quote } = data;
+          return { content: [{ type: 'text', text: JSON.stringify({
+            ...quote,
+            method: '24-hour price change: BUY above +2%, SELL below -2%, otherwise HOLD',
+            calibratedProbability: null,
+            disclaimer: 'Unvalidated price-change heuristic. Targets are illustrative; no measured win rate, predictive probability or guarantee is available.',
+          }, null, 2) }] };
+        }
         return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
       } catch (err: any) {
         return { content: [{ type: 'text', text: `Error: ${err.message}` }], isError: true };
@@ -76,7 +85,7 @@ export function createCryptoMcpServer({ publicOnly = false } = {}) {
 
   server.tool(
     'crypto_check_wallet_portfolio',
-    'Query on-chain verified balances and estimated USD portfolio valuation for any EVM wallet address.',
+    'Query the native ETH balance of a public Ethereum mainnet address and estimate its USD value. Excludes token holdings and other chains.',
     {
       walletAddress: z.string().describe('EVM wallet address (0x...)'),
     },
@@ -110,7 +119,7 @@ export function createCryptoMcpServer({ publicOnly = false } = {}) {
 
   server.tool(
     'crypto_calculate_dex_swap',
-    'Calculate decentralized swap output, slippage tolerance, estimated fees, and Uniswap routing path.',
+    'Estimate token conversion using public exchange prices and an assumed slippage tolerance. Not an executable DEX quote or live gas estimate.',
     {
       fromToken: z.string().describe('Source token symbol, e.g. USDT, ETH, BTC'),
       toToken: z.string().describe('Target token symbol, e.g. BTC, ETH, SOL'),
@@ -120,6 +129,14 @@ export function createCryptoMcpServer({ publicOnly = false } = {}) {
     async ({ fromToken, toToken, amount }) => {
       try {
         const data = await tools.calculateDexSwap(fromToken, toToken, amount);
+        if (publicOnly) {
+          const { estimatedGasUsd, uniswapDeepLink, ...estimate } = data;
+          return { content: [{ type: 'text', text: JSON.stringify({
+            ...estimate, quoteType: 'PRICE_CONVERSION_ESTIMATE', executable: false,
+            estimatedGasUsd: null,
+            disclaimer: 'Based on Binance market prices; stablecoins assumed at USD 1 and slippage assumed at 0.5%. No liquidity pool, gas, bridge or execution route was quoted.',
+          }, null, 2) }] };
+        }
         return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
       } catch (err: any) {
         return { content: [{ type: 'text', text: `Error: ${err.message}` }], isError: true };

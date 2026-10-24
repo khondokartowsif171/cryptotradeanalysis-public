@@ -10,6 +10,8 @@ RUN npm run build
 
 FROM nginx:alpine
 
+RUN apk add --no-cache --upgrade ca-certificates && update-ca-certificates
+
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY cryptox-proxy.conf /etc/nginx/cryptox-proxy.conf
 COPY --from=builder /app/dist /usr/share/nginx/html

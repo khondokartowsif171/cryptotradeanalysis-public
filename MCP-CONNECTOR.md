@@ -12,6 +12,8 @@ Deploy `server/` from this repository. Add `https://crypto.auraajenticai.cloud:3
 
 Alternatively, the frontend Dockerfile installs an Nginx configuration that proxies `/mcp` to the backend `/connector` router and `/api/` to existing API routes. Deploying that frontend makes the website, frontend API requests and MCP available on the same public domain. It excludes legacy MCP execution paths under `/api/`.
 
+The existing production frontend is the standalone `crypto-frontend` container. Its Nginx configuration was backed up under `/root/cryptox-mcp-20261024/` before installing the proxy. The running container uses a dedicated upstream CA bundle copied from the VPS's verified trust store at `/etc/nginx/cryptox-ca.pem`; TLS and hostname verification remain enabled. Preserve that bundle/configuration if replacing this standalone container. The repository Dockerfile refreshes the image's CA certificates for future builds; validate the backend certificate chain when deploying a replacement image.
+
 The new endpoint is stateless: initialize, discovery and calls each work without a process-local session or sticky routing. It returns JSON responses and validates browser Origin headers. Browser navigation leads to `/mcp/info`. Streamable HTTP GET streams are not enabled; a stream request receives HTTP 405.
 
 ## Verification

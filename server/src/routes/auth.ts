@@ -84,7 +84,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({ user, token });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      res.status(400).json({ error: err.errors[0].message });
+      res.status(400).json({ error: err.issues[0].message });
       return;
     }
     console.error('Registration error:', err);
@@ -127,7 +127,7 @@ router.post('/login', rateLimit(10,60_000,req => String(req.body?.email || req.i
     });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      res.status(400).json({ error: err.errors[0].message });
+      res.status(400).json({ error: err.issues[0].message });
       return;
     }
     console.error('Login error:', err);

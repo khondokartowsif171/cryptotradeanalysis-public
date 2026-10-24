@@ -14,12 +14,12 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "ethers": "^6.17.0",
-    "express": "^4.21.0",
+    "express": "^4.22.3",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.9.0",
     "nodemailer": "^10.2.1",
     "pg": "^8.13.0",
-    "zod": "^3.23.8"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.14",

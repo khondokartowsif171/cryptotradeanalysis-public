@@ -28,7 +28,7 @@ const LegalModal: React.FC<LegalModalProps> = ({ open, onClose, docType }) => {
             <strong className="text-foreground">2. Non-Custodial Architecture:</strong> Aura CryptoX does not take custody of user funds, private keys, or wallet seed phrases. All subscription payments and DEX interactions settle directly on public EVM blockchains into our designated treasury or decentralized smart contracts.
           </p>
           <p>
-            <strong className="text-foreground">3. Pro & VIP Subscriptions:</strong> Subscriptions are billed on a recurring 30-day basis or via blockchain transaction hash submission. Access to premium quantitative signals and API endpoints remains active during the paid billing cycle.
+            <strong className="text-foreground">3. Pro & VIP Subscriptions:</strong> Paid plans are prepaid for 30 or 365 days, as shown at checkout. There is no automatic recurring debit. Pay an invoice from your linked wallet using a supported token and network; access activates after the server verifies the transfer and required blockchain confirmations. Network gas is additional. Same-plan renewals extend the paid term. Different plans start after verification without automatic proration, and remaining paid Pro access is preserved separately. Keep your invoice and transaction hash if verification is delayed, and contact support before sending another payment.
           </p>
           <p>
             <strong className="text-foreground">4. Prohibited Uses:</strong> Users agree not to conduct market manipulation, unauthorized reverse-engineering of trading algorithms, or access the service from sanctioned jurisdictions.
@@ -38,18 +38,18 @@ const LegalModal: React.FC<LegalModalProps> = ({ open, onClose, docType }) => {
     },
     privacy: {
       title: 'Privacy Policy',
-      subtitle: 'Zero-Knowledge Data Ethics & Wallet Security Standards',
+      subtitle: 'Account Data & Wallet Security',
       icon: Lock,
       body: (
         <div className="space-y-4 text-xs md:text-sm text-muted-foreground leading-relaxed">
           <p>
-            <strong className="text-foreground">1. Information We Collect:</strong> We collect only necessary identifiers: public blockchain wallet addresses (via a signed ownership challenge) and registered email addresses for account recovery. We never collect or store private keys.
+            <strong className="text-foreground">1. Account & Payment Data:</strong> We store registered email addresses, password hashes for password accounts, linked public wallet addresses, saved watchlists and portfolios, invoices, public payment hashes and subscription records. Wallet ownership challenges expire after five minutes. We never request or store wallet private keys or seed phrases.
           </p>
           <p>
-            <strong className="text-foreground">2. Cryptographic Nonce Authentication:</strong> Web3 authentication verifies ownership using elliptic curve digital signatures (ECDSA). No password is required or stored for Web3 logins.
+            <strong className="text-foreground">2. Wallet Login & API Keys:</strong> Wallet login verifies a signed, single-use ownership challenge and does not authorize spending. A wallet-only account does not require a password. VIP client API keys are shown once and stored as hashes, with expiry, revocation and usage metadata. Those keys grant read-only access to the account's supported data while VIP access remains active.
           </p>
           <p>
-            <strong className="text-foreground">3. Third-Party Analytics:</strong> Real-time price feeds are ingested directly from public exchange APIs (Binance, TwelveData). No personal telemetry is sold to third parties or advertisers.
+            <strong className="text-foreground">3. External Data Providers:</strong> Market, chart and blockchain providers receive the requests needed to display data or verify public payments. Blockchain wallet addresses and transactions are publicly visible. Review a provider's own privacy information when following an external link or connecting to its service.
           </p>
         </div>
       ),
@@ -67,7 +67,7 @@ const LegalModal: React.FC<LegalModalProps> = ({ open, onClose, docType }) => {
             <strong className="text-foreground">1. No Financial Advice:</strong> All quantitative signals, technical indicators, candlestick charts, and market overviews provided on Aura CryptoX are for educational and analytical purposes only. They do not constitute financial, investment, legal, or tax advice.
           </p>
           <p>
-            <strong className="text-foreground">2. Algorithmic Uncertainty:</strong> Quantitative trading signals rely on historical price confluence, volume moving averages, and on-chain metrics. Past performance does not guarantee future market results.
+            <strong className="text-foreground">2. Signal & Data Limits:</strong> Signals and indicators depend on available market data and may be delayed, incomplete or unavailable. An indicator or paper trade calculation does not guarantee a result or place a real order. Past performance does not guarantee future market results.
           </p>
           <p>
             <strong className="text-foreground">3. Smart Contract & Blockchain Risks:</strong> Interactions with decentralized liquidity pools (Uniswap, 1inch) involve smart contract risks, gas volatility, and slippage. Users assume full responsibility for private transaction execution.
@@ -77,30 +77,30 @@ const LegalModal: React.FC<LegalModalProps> = ({ open, onClose, docType }) => {
     },
     compliance: {
       title: 'Regulatory Compliance',
-      subtitle: 'Institutional Standards & Decentralized Protocol Governance',
+      subtitle: 'Platform Scope & Regional Availability',
       icon: Scale,
       body: (
         <div className="space-y-4 text-xs md:text-sm text-muted-foreground leading-relaxed">
           <p>
-            <strong className="text-foreground">1. Global Compliance Framework:</strong> Aura Agentic AI operates in accordance with emerging international standards for software developers providing decentralized financial analytical interfaces.
+            <strong className="text-foreground">1. Platform Scope:</strong> Aura CryptoX provides market analytics and wallet-connected software. A subscription buys access to the features listed in the current plan; it is not an investment product or a promise of returns.
           </p>
           <p>
-            <strong className="text-foreground">2. Developer Safe Harbor:</strong> The Platform functions strictly as a non-custodial software provider and does not operate as a broker-dealer, custodian, or exchange under securities law.
+            <strong className="text-foreground">2. Regional Availability:</strong> Permitted use depends on the rules applicable to you and to the external services you choose. This page does not establish a regulatory approval, licence or exemption. Contact the operator at ceo@auraajenticai.cloud with questions about service availability.
           </p>
         </div>
       ),
     },
     aml: {
       title: 'Anti-Money Laundering (AML) Policy',
-      subtitle: 'Sanctions Screening & Financial Crime Prevention Protocols',
+      subtitle: 'Acceptable Payments & Verification Limits',
       icon: ShieldCheck,
       body: (
         <div className="space-y-4 text-xs md:text-sm text-muted-foreground leading-relaxed">
           <p>
-            <strong className="text-foreground">1. Sanctions Screening:</strong> Aura CryptoX prohibits transactions originating from OFAC-sanctioned wallet addresses, mixing protocols (e.g., Tornado Cash), or jurisdictions under FATF high-risk watchlists.
+            <strong className="text-foreground">1. Prohibited Activity:</strong> Do not use the platform or subscription payments for money laundering, fraud, sanctions evasion or other unlawful activity. Direct payment-related concerns to ceo@auraajenticai.cloud and include the relevant public transaction hash.
           </p>
           <p>
-            <strong className="text-foreground">2. On-Chain Monitoring:</strong> Platform subscriptions and treasury receipts are evaluated against known blockchain intelligence databases to prevent illicit financing or ransomware transactions.
+            <strong className="text-foreground">2. Verification Limits:</strong> No automatic sanctions-screening or blockchain-intelligence service is currently integrated. Receipt verification checks payment details and confirmations; it does not establish a customer's identity or the source of funds.
           </p>
         </div>
       ),
@@ -112,7 +112,7 @@ const LegalModal: React.FC<LegalModalProps> = ({ open, onClose, docType }) => {
       body: (
         <div className="space-y-4 text-xs md:text-sm text-muted-foreground leading-relaxed">
           <p>
-            <strong className="text-foreground">1. Essential Local Storage:</strong> We use browser localStorage to maintain your authentication JWT token, selected dark theme preferences, and active watchlist coins.
+            <strong className="text-foreground">1. Essential Local Storage:</strong> Browser storage maintains your account session, display preferences, watchlist and install preferences. An unresolved invoice ID and public transaction hash may also be saved for payment recovery, scoped to your account. The app does not persist wallet private keys or client API key values in browser storage.
           </p>
           <p>
             <strong className="text-foreground">2. Zero Tracking Cookies:</strong> We do not deploy third-party advertising or cross-site tracking cookies.

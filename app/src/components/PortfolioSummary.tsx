@@ -1,176 +1,60 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBinanceTicker } from '@/hooks/useBinanceWS';
 import { useAppContext } from '@/contexts/AppContext';
 import { api } from '@/services/api';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { Wallet, TrendingUp, ArrowUpRight, Pencil, Check, X, Loader2 } from 'lucide-react';
+import { activeTier } from '@/lib/subscription';
+import PlanAccess from '@/components/PlanAccess';
+import { PieChart,Pie,Cell,ResponsiveContainer,Tooltip } from 'recharts';
 import { toast } from '@/components/ui/use-toast';
-
-const defaultHoldings = [
-  { symbol: 'BTC', amount: 0.3, name: 'Bitcoin' },
-  { symbol: 'ETH', amount: 5.0, name: 'Ethereum' },
-  { symbol: 'SOL', amount: 40, name: 'Solana' },
-  { symbol: 'BNB', amount: 8, name: 'BNB' },
-];
-
-const COLORS: Record<string, string> = {
-  BTC: '#F7931A', ETH: '#627EEA', SOL: '#9945FF', BNB: '#F0B90B',
-};
-
-const PortfolioSummary: React.FC = () => {
-  const { user } = useAppContext();
-  const [holdings, setHoldings] = useState(defaultHoldings);
-  const [editing, setEditing] = useState(false);
-  const [editValues, setEditValues] = useState(defaultHoldings.map(h => h.amount.toString()));
-  const [loading, setLoading] = useState(false);
-
-  const symbols = holdings.map(h => h.symbol);
-  const { tickers } = useBinanceTicker(symbols);
-
+import { Wallet,Pencil } from 'lucide-react';
+type Holding = { symbol: string; amount: number; name?: string };
+const palette = ['#f7931a','#627eea','#9945ff','#00bba7','#00c8df','#e9bd32'];
+export default function PortfolioSummary() {
+  const { user,refreshUser } = useAppContext();
+  const currentUser=useRef(user?.id); currentUser.current=user?.id;
+  const userId = user?.id;
+  const allowed = activeTier(user) !== 'free';
+  const [holdings,setHoldings] = useState<Holding[]>([]);
+  const [draft,setDraft] = useState<Holding[]>([]);
+  const [editing,setEditing] = useState(false);
+  const [loading,setLoading] = useState(false);
+  const [error,setError] = useState('');
+  const { tickers } = useBinanceTicker(allowed ? holdings.map(holding => holding.symbol) : []);
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const res = await api.portfolio.get();
-      if (!res._offline && res.data.portfolio.length > 0) {
-        setHoldings(res.data.portfolio);
-        setEditValues(res.data.portfolio.map((h: any) => h.amount.toString()));
-      }
-    })();
-  }, [user]);
-
-  const portfolioData = useMemo(() => {
-    const priced = holdings.map((h) => {
-      const ticker = tickers.get(h.symbol);
-      const price = ticker?.price ?? 0;
-      return { ...h, usd: price * h.amount, price };
-    });
-    const total = priced.reduce((s, h) => s + h.usd, 0) || 1;
-    const othersUsd = priced.reduce((s, h) => s + h.usd * 0.1 / 0.9, 0);
-    const othersPct = total > 0 ? 10 : 0;
-    const items = priced.map(h => ({
-      name: h.symbol,
-      value: Math.round((h.usd / total) * 100),
-      color: COLORS[h.symbol] || '#6366f1',
-      amount: Math.round(h.usd),
-    }));
-    items.push({ name: 'Others', value: othersPct, color: '#6366f1', amount: Math.round(othersUsd) });
-    return items;
-  }, [holdings, tickers]);
-
-  const totalValue = portfolioData.reduce((s, d) => s + d.amount, 0);
-
-  const startEdit = () => {
-    setEditValues(holdings.map(h => h.amount.toString()));
-    setEditing(true);
-  };
-
-  const saveEdit = async () => {
-    const parsed = holdings.map((h, i) => ({
-      ...h,
-      amount: parseFloat(editValues[i]) || 0,
-    }));
-    if (parsed.every(h => h.amount === 0)) {
-      toast({ title: 'Empty Portfolio', description: 'Add at least one holding.', variant: 'destructive' });
-      return;
-    }
-    setHoldings(parsed);
-    setEditing(false);
+    setHoldings([]); setDraft([]); setEditing(false); setError('');
+    if (!userId || !allowed) return;
+    let mounted = true;
     setLoading(true);
-    if (user) {
-      const res = await api.portfolio.save(parsed);
-      if (res._offline) {
-        toast({ title: 'Saved Locally', description: 'Backend offline. Data saved in browser.' });
-      } else {
-        toast({ title: 'Portfolio Saved', description: 'Your holdings are synced to cloud.' });
-      }
+    void api.portfolio.get().then(result => {
+      if (!mounted) return;
+      if (result._offline) throw new Error('Portfolio is unavailable. Your saved holdings have not changed');
+      setHoldings(result.data.portfolio);
+    }).catch(error => { if (mounted) { setError(error.message); if (error.status === 403) void refreshUser(); } }).finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  },[userId,allowed,refreshUser]);
+  const priced = useMemo(() => holdings.map(holding => ({...holding,name:holding.symbol,value:(tickers.get(holding.symbol)?.price || 0)*holding.amount})),[holdings,tickers]);
+  const total = priced.reduce((sum,holding) => sum+holding.value,0);
+  const missingPrices = holdings.some(holding => holding.amount > 0 && !tickers.has(holding.symbol));
+  if (!allowed) return <PlanAccess title="Portfolio tracker" />;
+  const edit = () => { setDraft(holdings.length ? holdings.map(holding => ({...holding})) : [{symbol:'BTC',amount:0}]); setEditing(true); };
+  const save = async () => {
+    const values = draft.map(holding => ({symbol:holding.symbol.trim().toUpperCase(),amount:Number(holding.amount)}));
+    if (values.some(holding => !/^[A-Z0-9]{1,20}$/.test(holding.symbol) || !Number.isFinite(holding.amount) || holding.amount < 0) || new Set(values.map(holding => holding.symbol)).size !== values.length) {
+      setError('Use unique ticker symbols and non-negative quantities'); return;
     }
-    setLoading(false);
+    const userId=user?.id;
+    setLoading(true); setError('');
+    try { const result = await api.portfolio.save(values); if(currentUser.current !== userId) return; if (result._offline) throw new Error('Portfolio was not saved. Reconnect and retry'); setHoldings(result.data.portfolio); setEditing(false); toast({title:'Portfolio saved'}); }
+    catch(error) { setError((error as Error).message); }
+    finally { setLoading(false); }
   };
-
-  const cancelEdit = () => {
-    setEditValues(holdings.map(h => h.amount.toString()));
-    setEditing(false);
-  };
-
-  return (
-    <div className="glass-card p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Wallet className="w-5 h-5 text-primary" />
-          <h3 className="font-bold">Portfolio</h3>
-        </div>
-        {user && !editing && (
-          <button onClick={startEdit} className="p-1.5 rounded-lg hover:bg-accent transition-colors">
-            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-          </button>
-        )}
-      </div>
-
-      <div className="mb-4">
-        <p className="text-xs text-muted-foreground">Total Value</p>
-        <p className="text-2xl font-bold font-mono">${totalValue.toLocaleString()}</p>
-        <p className="flex items-center gap-1 text-sm text-emerald-400 font-mono">
-          <ArrowUpRight className="w-3.5 h-3.5" />
-          Live price updated
-        </p>
-      </div>
-
-      <div className="w-full h-40 mb-4">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={portfolioData} cx="50%" cy="50%" innerRadius={45} outerRadius={65}
-              paddingAngle={3} dataKey="value" stroke="none"
-            >
-              {portfolioData.map((e, i) => <Cell key={i} fill={e.color} />)}
-            </Pie>
-            <Tooltip content={({ active, payload }) => {
-              if (!active || !payload?.length) return null;
-              const d = payload[0].payload;
-              return <div className="glass-card p-2 text-xs shadow-xl"><p className="font-medium">{d.name}</p><p className="font-mono">${d.amount.toLocaleString()} ({d.value}%)</p></div>;
-            }} />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="space-y-2">
-        {holdings.map((h, i) => (
-          <div key={h.symbol} className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[h.symbol] || '#6366f1' }} />
-            <span className="text-xs flex-1">{h.symbol}</span>
-            {editing ? (
-              <input
-                type="number"
-                step="any"
-                value={editValues[i]}
-                onChange={(e) => {
-                  const vals = [...editValues];
-                  vals[i] = e.target.value;
-                  setEditValues(vals);
-                }}
-                className="w-20 text-right text-xs font-mono bg-secondary/50 border border-border rounded px-1.5 py-0.5 focus:outline-none"
-              />
-            ) : (
-              <span className="text-xs font-mono text-muted-foreground">{h.amount} {h.symbol}</span>
-            )}
-            <span className="text-xs font-mono font-medium w-20 text-right">
-              ${(tickers.get(h.symbol)?.price ?? 0) * h.amount > 0 ? Math.round((tickers.get(h.symbol)?.price ?? 0) * h.amount).toLocaleString() : '0'}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {editing && (
-        <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/30">
-          <button onClick={saveEdit} disabled={loading} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 py-2 rounded-lg text-xs font-semibold hover:bg-emerald-500/20 transition-colors disabled:opacity-50">
-            {loading ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving</> : <><Check className="w-3.5 h-3.5" /> Save</>}
-          </button>
-          <button onClick={cancelEdit} className="flex-1 flex items-center justify-center gap-1.5 bg-red-500/10 text-red-400 border border-red-500/20 py-2 rounded-lg text-xs font-semibold hover:bg-red-500/20 transition-colors">
-            <X className="w-3.5 h-3.5" /> Cancel
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default PortfolioSummary;
+  return <section className="glass-card space-y-4 p-5">
+    <div className="flex items-center justify-between"><h3 className="flex items-center gap-2 font-semibold"><Wallet className="h-4 w-4 text-primary" />Portfolio</h3><button type="button" aria-label="Edit portfolio" onClick={edit} disabled={loading}><Pencil className="h-4 w-4" /></button></div>
+    <div><p className="text-xs text-muted-foreground">Tracked holdings · estimated value</p><p className="font-mono text-2xl font-bold">${total.toLocaleString(undefined,{maximumFractionDigits:2})}</p><p className="text-xs text-muted-foreground">{missingPrices ? 'Some prices are unavailable; this total is incomplete.' : 'Based on your entered holdings and available market prices.'}</p></div>
+    {loading && <p role="status" className="text-xs">Loading…</p>}
+    {error && <p role="status" className="text-xs text-amber-500">{error}</p>}
+    {!editing && !holdings.length && <p className="text-sm text-muted-foreground">Add your holdings to start tracking. This tracker does not read your wallet balances.</p>}
+    {!editing && total > 0 && <div className="h-36"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={priced} dataKey="value" nameKey="symbol" innerRadius={40} outerRadius={60}>{priced.map((holding,index) => <Cell key={holding.symbol} fill={palette[index%palette.length]} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer></div>}
+    {editing ? <div className="space-y-2">{draft.map((holding,index) => <div key={index} className="flex gap-2"><input aria-label={`Holding ${index+1} ticker`} value={holding.symbol} onChange={event => setDraft(previous => previous.map((item,i) => i===index ? {...item,symbol:event.target.value} : item))} className="min-w-0 w-20 rounded border bg-secondary p-1 text-xs" /><input aria-label={`Holding ${index+1} quantity`} type="number" min="0" step="any" value={holding.amount} onChange={event => setDraft(previous => previous.map((item,i) => i===index ? {...item,amount:Number(event.target.value)} : item))} className="min-w-0 flex-1 rounded border bg-secondary p-1 text-xs" /><button type="button" aria-label={`Remove holding ${index+1}`} onClick={() => setDraft(previous => previous.filter((_,i) => i!==index))} className="text-xs text-red-400">Remove</button></div>)}<div className="flex flex-wrap gap-2 text-xs"><button type="button" disabled={draft.length>=1000} onClick={() => setDraft(previous => [...previous,{symbol:'',amount:0}])} className="rounded border p-2">Add holding</button><button type="button" disabled={loading} onClick={() => void save()} className="rounded bg-primary p-2 text-primary-foreground">Save holdings</button><button type="button" onClick={() => setEditing(false)} className="rounded border p-2">Cancel</button></div></div> : <ul className="space-y-2 text-xs">{priced.map(holding => <li key={holding.symbol} className="flex justify-between"><span>{holding.symbol} · {holding.amount}</span><span>{tickers.has(holding.symbol) ? '$'+holding.value.toLocaleString(undefined,{maximumFractionDigits:2}) : 'Price unavailable'}</span></li>)}</ul>}
+  </section>;
+}

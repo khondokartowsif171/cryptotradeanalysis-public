@@ -43,7 +43,7 @@ const LegalModal: React.FC<LegalModalProps> = ({ open, onClose, docType }) => {
       body: (
         <div className="space-y-4 text-xs md:text-sm text-muted-foreground leading-relaxed">
           <p>
-            <strong className="text-foreground">1. Information We Collect:</strong> We collect only necessary identifiers: public blockchain wallet addresses (via Sign-In With Ethereum) and registered email addresses for account recovery. We never collect or store private keys.
+            <strong className="text-foreground">1. Information We Collect:</strong> We collect only necessary identifiers: public blockchain wallet addresses (via a signed ownership challenge) and registered email addresses for account recovery. We never collect or store private keys.
           </p>
           <p>
             <strong className="text-foreground">2. Cryptographic Nonce Authentication:</strong> Web3 authentication verifies ownership using elliptic curve digital signatures (ECDSA). No password is required or stored for Web3 logins.

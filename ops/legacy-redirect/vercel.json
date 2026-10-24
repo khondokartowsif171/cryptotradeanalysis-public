@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "framework": null,
+  "buildCommand": null,
+  "installCommand": null,
+  "outputDirectory": null,
+  "redirects": [
+    {
+      "source": "/:path*",
+      "destination": "https://crypto.auraajenticai.cloud/:path*",
+      "permanent": false
+    }
+  ]
+}

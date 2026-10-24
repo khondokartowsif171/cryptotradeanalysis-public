@@ -18,12 +18,28 @@ export interface Plan {
   period?: string;
   yearlyPriceUsd?: number;
   features: string[];
+  plannedFeatures?: string[];
 }
 
-export interface TreasuryConfig {
-  EVM: string;
-  TRON: string;
-  acceptedTokens: { symbol: string; networks: string[] }[];
+export interface PaymentMethod {
+  id: string; network: string; chainId: number; token: string; tokenAddress: string; decimals: number; confirmations: number;
+  explorer: string; rpcUrls: string[]; nativeCurrency: { name: string; symbol: string; decimals: number };
+}
+export interface TreasuryConfig { EVM: string; paymentMethods: PaymentMethod[]; }
+export interface PaymentIntent {
+  id: string; plan: 'pro' | 'vip'; cycle: 'monthly' | 'yearly'; method: string; chain_id: number; token: string; token_address: string;
+  token_decimals: number; payer_address: string; treasury_address: string; amount_usd: string; amount_units: string;
+  duration_days: number; required_confirmations: number; status: 'pending' | 'confirmed'; tx_hash: string | null;
+  created_at: string; expires_at: string; confirmed_at?: string;
+}
+export interface PremiumSignal {
+  id?: string; _id?: string; type?: string; pair?: string; symbol?: string;
+  entry?: string | number; price?: string | number; target?: string | number; takeProfit?: string | number;
+  stopLoss?: string | number; stop_loss?: string | number; confidence?: string | number; timeframe?: string; interval?: string; indicator?: string; rsi?: number;
+}
+export interface ClientApiKey { id: string; name: string; suffix: string; created_at: string; expires_at: string; revoked_at?: string | null; last_used_at?: string | null; }
+export class ApiError extends Error {
+  constructor(message: string, public status: number, public code?: string) { super(message); }
 }
 
 function getToken(): string | null {
@@ -37,7 +53,7 @@ export function setToken(token: string | null) {
 
 export function getStoredUser(): User | null {
   const raw = localStorage.getItem('cryptox_user');
-  return raw ? JSON.parse(raw) : null;
+  try { const user = raw ? JSON.parse(raw) : null; return user && typeof user.id === 'string' ? user : null; } catch { return null; }
 }
 
 export function setStoredUser(user: User | null) {
@@ -52,7 +68,8 @@ export function clearAuth() {
 
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  timeoutMs = 8000
 ): Promise<ApiResponse<T>> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -65,17 +82,17 @@ async function request<T>(
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers,
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(body.error || `HTTP ${res.status}`);
+      throw new ApiError(body.error || `HTTP ${res.status}`,res.status,body.code);
     }
     const data = await res.json();
     return { data } as ApiResponse<T>;
   } catch (err: any) {
     if (
-      err.name === 'AbortError' ||
+      err.name === 'AbortError' || err.name === 'TimeoutError' ||
       err.message === 'Failed to fetch' ||
       err.message?.includes('Failed to fetch')
     ) {
@@ -108,8 +125,9 @@ export const api = {
         body: JSON.stringify({ email, code, newPassword }),
       }),
     me: () => request<{ user: User | null }>('/auth/me'),
-    walletNonce: (address: string) =>
-      request<{ nonce: string }>(`/auth/wallet/nonce?address=${encodeURIComponent(address)}`),
+    walletNonce: (address: string, purpose: 'login' | 'link' = 'login') =>
+      request<{ nonce: string }>(`/auth/wallet/nonce?address=${encodeURIComponent(address)}&purpose=${purpose}`),
+    walletLink: (address: string, signature: string, nonce: string) => request<{ user: User; token: string }>('/auth/wallet/link', { method: 'POST',body: JSON.stringify({address,signature,nonce}) }),
     walletVerify: (address: string, signature: string, nonce: string) =>
       request<{ user: User; token: string }>('/auth/wallet/verify', {
         method: 'POST',
@@ -118,12 +136,13 @@ export const api = {
   },
 
   billing: {
-    getPlans: () => request<{ plans: Plan[]; treasury: TreasuryConfig }>('/billing/plans'),
-    submitTx: (data: { plan: string; txHash: string; token: string; network: string }) =>
-      request<{ success: boolean; message: string; tier: string; order: any }>('/billing/submit-tx', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
+    getPlans: () => request<{ version?: number; plans: Plan[]; treasury: TreasuryConfig }>('/billing/plans'),
+    createIntent: (data: { plan: 'pro' | 'vip'; cycle: 'monthly' | 'yearly'; method: string }) => request<{ intent: PaymentIntent }>('/billing/intents',{ method: 'POST',body: JSON.stringify(data) }),
+    intents: () => request<{ intents: PaymentIntent[] }>('/billing/intents'),
+    submitTx: (data: { intentId: string; txHash: string }) => request<{ success: boolean; status: 'pending' | 'confirmed'; intent?: PaymentIntent; confirmations?: number; required?: number; message?: string; user?: User }>('/billing/submit-tx',{ method: 'POST',body: JSON.stringify(data) },30000),
+    keys: () => request<{ keys: ClientApiKey[] }>('/client-api/keys'),
+    createKey: (name: string) => request<{ key: string; details: ClientApiKey }>('/client-api/keys',{ method: 'POST',body: JSON.stringify({name}) }),
+    revokeKey: (id: string) => request<{ revoked: boolean }>(`/client-api/keys/${encodeURIComponent(id)}`,{ method: 'DELETE' }),
   },
 
   watchlist: {
@@ -155,6 +174,6 @@ export const api = {
   },
 
   signals: {
-    get: () => request<{ signals: any[] }>('/signals'),
+    get: () => request<{ signals: PremiumSignal[] }>('/signals'),
   },
 };

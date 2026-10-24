@@ -2,14 +2,22 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { ethers } from 'ethers';
 import nodemailer from 'nodemailer';
 import { query } from '../db/pool.js';
-import { generateToken } from '../middleware/auth.js';
+import { generateToken, authMiddleware } from '../middleware/auth.js';
+import { randomInt } from 'node:crypto';
+import { WalletAuth } from '../billing/walletAuth.js';
+import { database } from '../billing/database.js';
+import { loadClientUser } from '../billing/store.js';
+import { billingFailure } from '../billing/router.js';
+import { rateLimit } from '../middleware/rateLimit.js';
 
 const router = Router();
+router.use((_req,res,next) => { res.setHeader('Cache-Control','no-store'); next(); });
 
-const nonces = new Map<string, { nonce: string; timestamp: number }>();
+const walletAuth = new WalletAuth(database);
+const walletLimit = rateLimit(15,60_000,req => (req.user?.userId || String(req.body?.address || req.query.address || req.body?.email || req.ip || 'unknown')).toLowerCase().slice(0,200));
+const recoveryLimit = rateLimit(6,15*60_000,req => String(req.body?.email || req.ip || 'unknown').toLowerCase().slice(0,200));
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -28,64 +36,34 @@ const transporter = nodemailer.createTransport({
   secure: true,
   auth: {
     user: process.env.SMTP_USER || 'ceo@auraajenticai.cloud',
-    pass: process.env.SMTP_PASS || 'Redwan877091@&',
+    pass: process.env.SMTP_PASS,
   },
 });
 
-router.get('/wallet/nonce', (req, res) => {
-  const address = String(req.query.address || '').toLowerCase();
-  if (!address || !address.startsWith('0x')) {
-    res.status(400).json({ error: 'Valid wallet address required' });
-    return;
-  }
-  const randomSalt = Math.random().toString(36).substring(2, 10);
-  const nonce = `Sign this message to authenticate with Aura CryptoX:\nAddress: ${address}\nNonce: ${randomSalt}\nTimestamp: ${Date.now()}`;
-  nonces.set(address, { nonce, timestamp: Date.now() });
-  res.json({ nonce });
-});
-
-router.post('/wallet/verify', async (req, res) => {
+router.get('/wallet/nonce', walletLimit, async (req,res) => {
   try {
-    const { address, signature, nonce } = req.body;
-    if (!address || !signature || !nonce) {
-      res.status(400).json({ error: 'Missing address, signature, or nonce' });
-      return;
+    const purpose = req.query.purpose === 'link' ? 'link' : 'login';
+    if (purpose === 'link') {
+      let authenticated = false;
+      authMiddleware(req,res,() => { authenticated = true; });
+      if (!authenticated) return;
     }
-
-    const lowerAddr = address.toLowerCase();
-    
-    // Verify cryptographic signature
-    const recovered = ethers.verifyMessage(nonce, signature);
-    if (recovered.toLowerCase() !== lowerAddr) {
-      res.status(401).json({ error: 'Invalid cryptographic signature' });
-      return;
-    }
-    nonces.delete(lowerAddr);
-
-    // Upsert user with wallet_address
-    const userResult = await query(
-      'SELECT id, email, wallet_address, tier, tier_expires_at, created_at FROM users WHERE wallet_address = $1',
-      [lowerAddr]
-    );
-
-    let user;
-    if (userResult.rows.length === 0) {
-      const displayEmail = `${lowerAddr.slice(0, 6)}...${lowerAddr.slice(-4)}@wallet.cryptox`;
-      const insertResult = await query(
-        'INSERT INTO users (wallet_address, email, tier) VALUES ($1, $2, $3) RETURNING id, email, wallet_address, tier, tier_expires_at, created_at',
-        [lowerAddr, displayEmail, 'free']
-      );
-      user = insertResult.rows[0];
-    } else {
-      user = userResult.rows[0];
-    }
-
-    const token = generateToken({ userId: user.id, email: user.email, wallet: user.wallet_address });
-    res.json({ user, token });
-  } catch (err: any) {
-    console.error('Wallet verify error:', err);
-    res.status(500).json({ error: err.message || 'Wallet verification failed' });
-  }
+    res.json(await walletAuth.issue(String(req.query.address || ''),purpose,purpose === 'link' ? req.user!.userId : null));
+  } catch (error) { billingFailure(error,res); }
+});
+router.post('/wallet/verify', walletLimit, async (req,res) => {
+  try {
+    const { address,signature,nonce } = req.body;
+    const user = await walletAuth.verify(address,signature,nonce);
+    res.json({ user,token: generateToken({ userId: user!.id,email: user!.email,wallet: user!.wallet_address || undefined }) });
+  } catch (error) { billingFailure(error,res); }
+});
+router.post('/wallet/link', authMiddleware, walletLimit, async (req,res) => {
+  try {
+    const { address,signature,nonce } = req.body;
+    const user = await walletAuth.verify(address,signature,nonce,'link',req.user!.userId);
+    res.json({ user,token: generateToken({ userId: user!.id,email: user!.email,wallet: user!.wallet_address || undefined }) });
+  } catch (error) { billingFailure(error,res); }
 });
 
 router.post('/register', async (req, res) => {
@@ -101,7 +79,7 @@ router.post('/register', async (req, res) => {
       'INSERT INTO users (email, password_hash, tier) VALUES ($1, $2, $3) RETURNING id, email, wallet_address, tier, tier_expires_at, created_at',
       [email, password_hash, 'free']
     );
-    const user = result.rows[0];
+    const user = await loadClientUser(database.query,result.rows[0].id);
     const token = generateToken({ userId: user.id, email: user.email });
     res.status(201).json({ user, token });
   } catch (err: any) {
@@ -114,7 +92,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', rateLimit(10,60_000,req => String(req.body?.email || req.ip || 'unknown').toLowerCase().slice(0,200)), async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
     const result = await query(
@@ -125,16 +103,17 @@ router.post('/login', async (req, res) => {
       res.status(401).json({ error: 'Invalid email or password' });
       return;
     }
-    const user = result.rows[0];
-    if (!user.password_hash) {
+    const account = result.rows[0];
+    if (!account.password_hash) {
       res.status(401).json({ error: 'This account uses Web3 MetaMask wallet login. Please connect your wallet.' });
       return;
     }
-    const valid = await bcrypt.compare(password, user.password_hash);
+    const valid = await bcrypt.compare(password, account.password_hash);
     if (!valid) {
       res.status(401).json({ error: 'Invalid email or password' });
       return;
     }
+    const user = await loadClientUser(database.query,account.id);
     const token = generateToken({ userId: user.id, email: user.email });
     res.json({
       user: {
@@ -157,7 +136,7 @@ router.post('/login', async (req, res) => {
 });
 
 // Password Recovery: Send OTP to email
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', recoveryLimit, async (req, res) => {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
     if (!email) {
@@ -172,7 +151,7 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     // Generate 6-digit random code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = randomInt(100000,1000000).toString();
 
     await query(
       `INSERT INTO password_resets (email, code, expires_at)
@@ -200,11 +179,7 @@ router.post('/forgot-password', async (req, res) => {
       res.json({ success: true, message: `Reset code sent to ${email}. Please check your inbox or spam folder.` });
     } catch (mailErr: any) {
       console.error('Mail delivery note:', mailErr.message);
-      // Fallback response with success
-      res.json({
-        success: true,
-        message: `Reset code generated for ${email}.`,
-      });
+      res.status(503).json({ success: false,error: 'Email delivery is temporarily unavailable. No password was changed. Please try again later' });
     }
   } catch (err: any) {
     console.error('Forgot password error:', err);
@@ -213,7 +188,7 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 // Password Recovery: Verify OTP and set new password
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', recoveryLimit, async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
     if (!email || !code || !newPassword) {
@@ -250,7 +225,7 @@ router.post('/reset-password', async (req, res) => {
       [newHash, cleanEmail]
     );
 
-    const user = updateRes.rows[0];
+    const user = await loadClientUser(database.query,updateRes.rows[0].id);
     const token = generateToken({ userId: user.id, email: user.email });
 
     res.json({
@@ -272,7 +247,7 @@ router.get('/me', async (req, res) => {
     return;
   }
   try {
-    const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET || 'cryptox-dev-secret-change-in-production') as any;
+    const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET || 'cryptox-dev-secret-change-in-production', { algorithms: ['HS256'] }) as any;
     const result = await query(
       'SELECT id, email, wallet_address, tier, tier_expires_at, created_at FROM users WHERE id = $1',
       [payload.userId]
@@ -281,7 +256,7 @@ router.get('/me', async (req, res) => {
       res.json({ user: null });
       return;
     }
-    res.json({ user: result.rows[0] });
+    res.json({ user: await loadClientUser(database.query,payload.userId) });
   } catch {
     res.json({ user: null });
   }

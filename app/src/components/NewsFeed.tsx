@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/services/api';
 import { Clock, ExternalLink, RefreshCw, Loader2, Newspaper, Sparkles } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
@@ -9,27 +9,40 @@ const NewsFeed: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [liveNews, setLiveNews] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [stale, setStale] = useState(false);
+  const [checkedAt, setCheckedAt] = useState<number | null>(null);
+  const inFlight = useRef(false);
 
-  const fetchNews = async (showToast: boolean = false) => {
+  const fetchNews = useCallback(async (showToast: boolean = false) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setLoading(true);
     try {
       const res = await api.news.get();
-      if (!res._offline && res.data?.news && res.data.news.length > 0) {
+      if (!res._offline && Array.isArray(res.data?.news)) {
+        setCheckedAt(Date.now());
+        setStale(Boolean(res.data._stale || res.data._fallback));
         setLiveNews(res.data.news);
         if (showToast) {
-          toast({ title: 'News Refreshed', description: `Loaded ${res.data.news.length} real-time articles.` });
+          toast({ title: 'News Refreshed', description: `Loaded ${res.data.news.length} articles from the latest feed response.` });
         }
-      }
+      } else { setStale(true); }
     } catch (err: any) {
+      setStale(true);
       console.error('Failed to load live news:', err);
     } finally {
+      inFlight.current = false;
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchNews(false);
-  }, []);
+    void fetchNews(false);
+    const refreshVisible = () => { if (document.visibilityState === 'visible') void fetchNews(false); };
+    const timer = window.setInterval(refreshVisible, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', refreshVisible);
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', refreshVisible); };
+  }, [fetchNews]);
 
   const handleOpenArticle = (e: React.MouseEvent, url: string) => {
     e.stopPropagation();
@@ -51,9 +64,10 @@ const NewsFeed: React.FC = () => {
             Latest Crypto News
           </h2>
           <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Latest articles • Cointelegraph RSS
+            <span className={`w-2 h-2 rounded-full ${stale ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+            {stale ? 'Feed refresh unavailable • previous articles may be outdated' : 'Cointelegraph RSS • checks every 5 minutes'}
           </p>
+          {checkedAt && <p className="mt-1 text-xs text-muted-foreground">Last feed response: {new Date(checkedAt).toLocaleTimeString()}</p>}
         </div>
         <button
           onClick={() => fetchNews(true)}

@@ -151,7 +151,7 @@ export const api = {
     }),
 
   news: {
-    get: () => request<{ news: any[] }>('/news'),
+    get: () => request<{ news: any[]; _stale?: boolean; _fallback?: boolean; _cached?: boolean }>('/news'),
   },
 
   signals: {

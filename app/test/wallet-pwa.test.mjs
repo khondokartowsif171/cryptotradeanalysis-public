@@ -15,7 +15,7 @@ function load(relative, dependencies = {}, globals = {}) {
   vm.runInNewContext(code, { exports, require: id => dependencies[id] || require(id), console, URLSearchParams, ...globals });
   return exports;
 }
-const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'https://crypto.auraajenticai.cloud' });
+const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'https://crypto.auraajenticai.cloud', pretendToBeVisual: true });
 globalThis.window = dom.window;
 globalThis.document = dom.window.document;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -126,4 +126,30 @@ test('service worker leaves API, MCP, auth, writes and third-party requests on t
   let intercepted = false;
   events.get('fetch')({ request: { method: 'POST', url: 'https://crypto.auraajenticai.cloud/order' }, respondWith: () => { intercepted = true; } });
   assert.equal(intercepted, false);
+});
+
+test('news checks again, renders new headlines and labels stale feed responses', async () => {
+  let articles = [{ id: 'one', title: 'First headline', summary: 'First summary', category: 'Market', source: 'Cointelegraph', url: 'https://cointelegraph.com', time: '1m ago', image: '/test.png' }];
+  let stale = false, refresh, cleared = false;
+  const previousInterval = window.setInterval, previousClear = window.clearInterval;
+  window.setInterval = callback => { refresh = callback; return 123; };
+  window.clearInterval = id => { if (id === 123) cleared = true; };
+  const { default: NewsFeed } = load('../src/components/NewsFeed.tsx', {
+    '@/services/api': { api: { news: { get: async () => ({ data: { news: articles, _stale: stale } }) } } },
+    '@/components/ui/use-toast': { toast() {} },
+  }, { window, document });
+  const root = createRoot(document.getElementById('root'));
+  try {
+    await act(async () => { root.render(React.createElement(NewsFeed)); });
+    assert.match(document.body.textContent, /First headline/);
+    articles = [{ ...articles[0], id: 'two', title: 'Updated headline' }];
+    await act(async () => { refresh(); });
+    assert.match(document.body.textContent, /Updated headline/);
+    assert.doesNotMatch(document.body.textContent, /First headline/);
+    stale = true;
+    await act(async () => { refresh(); });
+    assert.match(document.body.textContent, /previous articles may be outdated/);
+    await act(async () => root.unmount());
+    assert.equal(cleared, true);
+  } finally { window.setInterval = previousInterval; window.clearInterval = previousClear; }
 });
